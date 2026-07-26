@@ -4,6 +4,7 @@ import 'nearby_services_screen.dart';
 import 'missing_person_screen.dart';
 import 'family_locator_screen.dart';
 import 'temple_queue_screen.dart';
+import 'community_intelligence_screen.dart';
 import 'login_screen.dart';
 import 'dart:ui';
 
@@ -168,6 +169,7 @@ class HomeScreen extends StatelessWidget {
                     mainAxisSpacing: 16,
                     children: [
                       _buildActionCard(context, Icons.medical_services_rounded, "Nearby Services", Colors.blue, const NearbyServicesScreen()),
+                      _buildActionCard(context, Icons.campaign_rounded, "Community Intel", Colors.amber, const CommunityIntelligenceScreen()),
                       _buildActionCard(context, Icons.person_search_rounded, "Missing Person", Colors.orange, const MissingPersonScreen()),
                       _buildActionCard(context, Icons.groups_rounded, "Family Locator", Colors.teal, const FamilyLocatorScreen()),
                       _buildActionCard(context, Icons.temple_hindu_rounded, "Temple Queue", Colors.purple, const TempleQueueScreen()),
