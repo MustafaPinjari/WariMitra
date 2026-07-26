@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'screens/home_screen.dart';
 import 'screens/sos_screen.dart';
 import 'screens/services_screen.dart';
+import 'screens/splash_screen.dart';
 
 void main() {
   runApp(const WariMitraApp());
@@ -17,13 +18,37 @@ class WariMitraApp extends StatelessWidget {
       title: 'WariMitra',
       theme: ThemeData(
         primarySwatch: Colors.orange,
-        scaffoldBackgroundColor: Colors.grey[50],
+        scaffoldBackgroundColor: const Color(0xFF0F1115),
       ),
-      home: const MainNavigation(),
+      home: const AppEntry(),
       debugShowCheckedModeBanner: false,
     );
   }
 }
+
+/// AppEntry shows the SplashScreen first, then transitions to MainNavigation.
+class AppEntry extends StatefulWidget {
+  const AppEntry({Key? key}) : super(key: key);
+
+  @override
+  State<AppEntry> createState() => _AppEntryState();
+}
+
+class _AppEntryState extends State<AppEntry> {
+  bool _showSplash = true;
+
+  void _onSplashComplete() {
+    setState(() => _showSplash = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _showSplash
+        ? SplashScreen(onComplete: _onSplashComplete)
+        : const MainNavigation();
+  }
+}
+
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({Key? key}) : super(key: key);
