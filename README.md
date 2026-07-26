@@ -254,6 +254,52 @@ ALLOWED_HOSTS=localhost,127.0.0.1
 
 ---
 
+### 5. Seed Demo Data
+
+WariMitra ships with a full demo seeder that populates all modules with realistic Wari pilgrimage data in one command:
+
+```bash
+cd backend
+.\venv\Scripts\python manage.py seed_demo_data   # Windows
+python manage.py seed_demo_data                   # macOS/Linux
+```
+
+This seeds:
+- 10 users across all roles (Pilgrim, Volunteer, Police, Medical, NGO, Admin...)
+- 3 Pilgrim profiles with QR IDs, blood groups & emergency contacts
+- 4 Dindi groups (Pune, Alandi, Mumbai, Nashik)
+- 5 Medical camps along the Wari route with GPS coordinates
+- 5 Ambulances with statuses
+- 5 live SOS incidents (Critical, High, Medium) covering all emergency types
+- 4 NGO resource inventories (Water, Food, Medicine, Blankets) totaling 85,000+ units
+- 4 Temple queue entries with live wait times
+
+---
+
+## 🔑 Demo Login Credentials
+
+After running `seed_demo_data`, you can log into the system with the following accounts:
+
+| Role | Username | Password | Access |
+|---|---|---|---|
+| 🔴 Super Admin | `superadmin` | `WariMitra@2025!` | Everything + Django Admin |
+| 🟠 Govt Admin | `govt_admin` | `GovtAdmin@123` | Government Dashboard, Analytics |
+| 🟢 Medical Officer | `medical_officer` | `MedOfficer@123` | Medical Camps, Ambulances, Patients |
+| 🔵 Police Officer | `police_officer` | `Police@1234` | Police Units, Traffic, Security |
+| 🟣 NGO Coordinator | `ngo_coord` | `NGO@123456` | Resource Management, Distributions |
+| 🟡 Volunteer | `volunteer_1` | `Volunteer@123` | Task Assignment, Field Reporting |
+| ⚪ Dindi Leader | `dindi_leader` | `Dindi@Leader1` | Group Management, Member Tracking |
+| 🟤 Pilgrim 1 | `pilgrim_1` | `Pilgrim@123` | Mobile App, SOS, Services |
+| 🟤 Pilgrim 2 | `pilgrim_2` | `Pilgrim@234` | Mobile App, SOS, Services |
+| 🟤 Pilgrim 3 | `pilgrim_3` | `Pilgrim@345` | Mobile App, SOS, Services |
+
+> **Django Admin Panel:** `http://localhost:8000/admin/`
+> Login with `superadmin` / `WariMitra@2025!`
+
+> **API Token:** Use `/api/v1/auth/token/` with any username/password above to get a JWT bearer token for the REST API.
+
+---
+
 ## 🔌 API Documentation
 
 The REST API follows standard DRF conventions. All endpoints are prefixed with `/api/v1/`.
