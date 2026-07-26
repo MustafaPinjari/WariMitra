@@ -1,0 +1,10 @@
+﻿-r base.txt
+django-extensions
+black
+isort
+flake8
+mypy
+pytest
+pytest-django
+coverage
+pre-commit
