@@ -1,10 +1,30 @@
 <div align="center">
 
-<img src="https://img.shields.io/badge/WariMitra-Digital%20Wari%20Ecosystem-FF6B00?style=for-the-badge" alt="WariMitra Banner"/>
+<!-- Main Brand Logo -->
+<img src="WariMitra_WebLogo.png" alt="WariMitra Logo" width="220"/>
 
 # 🕉️ WariMitra — Digital Wari Ecosystem
 
 **The world's first unified digital platform for large-scale religious pilgrimage management.**
+
+<!-- Platform Logos -->
+<table>
+  <tr>
+    <td align="center" width="200">
+      <img src="WariMitra_WebLogo.png" alt="Web Dashboard Logo" width="120"/><br/>
+      <sub><b>🌐 Web Dashboard</b><br/>(Next.js 15)</sub>
+    </td>
+    <td align="center" width="80">
+      <img src="https://img.shields.io/badge/×-vs-white?style=flat-square&color=1e293b" alt="vs"/>
+    </td>
+    <td align="center" width="200">
+      <img src="FlutterApp_Logo.png" alt="Flutter App Logo" width="120"/><br/>
+      <sub><b>📱 Mobile App</b><br/>(Flutter 3.x)</sub>
+    </td>
+  </tr>
+</table>
+
+<br/>
 
 [![Django](https://img.shields.io/badge/Django-6.0-092E20?style=flat-square&logo=django&logoColor=white)](https://djangoproject.com)
 [![Next.js](https://img.shields.io/badge/Next.js-15-000000?style=flat-square&logo=nextdotjs&logoColor=white)](https://nextjs.org)
