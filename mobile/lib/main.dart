@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:ui';
 import 'screens/home_screen.dart';
 import 'screens/sos_screen.dart';
@@ -6,7 +7,7 @@ import 'screens/services_screen.dart';
 import 'screens/splash_screen.dart';
 
 void main() {
-  runApp(const WariMitraApp());
+  runApp(const ProviderScope(child: WariMitraApp()));
 }
 
 class WariMitraApp extends StatelessWidget {
