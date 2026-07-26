@@ -1,4 +1,4 @@
-﻿import os
+import os
 from pathlib import Path
 from decouple import config
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -6,12 +6,14 @@ SECRET_KEY = config('SECRET_KEY', default='unsafe-secret-key')
 DEBUG = config('DEBUG', default=False, cast=bool)
 ALLOWED_HOSTS = ['*']
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'channels',
     'rest_framework',
     'corsheaders',
     'drf_spectacular',
@@ -22,7 +24,7 @@ INSTALLED_APPS = [
     'authentication', 'users', 'pilgrims', 'dindi', 'volunteers',
     'ngo', 'medical', 'police', 'temple', 'government',
     'community', 'sos', 'missing_person', 'navigation', 'maps',
-    'notifications', 'analytics', 'reports', 'weather', 'media', 'audit'
+    'notifications', 'analytics', 'reports', 'weather', 'media', 'audit', 'ai_predictions'
 ]]
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -37,6 +39,14 @@ MIDDLEWARE = [
 ROOT_URLCONF = 'config.urls'
 TEMPLATES = [{'BACKEND': 'django.template.backends.django.DjangoTemplates', 'DIRS': [], 'APP_DIRS': True, 'OPTIONS': {'context_processors': ['django.template.context_processors.debug', 'django.template.context_processors.request', 'django.contrib.auth.context_processors.auth', 'django.contrib.messages.context_processors.messages',],},},]
 WSGI_APPLICATION = 'config.wsgi.application'
+ASGI_APPLICATION = 'config.asgi.application'
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer" # Use InMemory for local dev, switch to Redis in prod
+    }
+}
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',

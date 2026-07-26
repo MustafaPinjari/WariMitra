@@ -1,4 +1,4 @@
-﻿Django>=4.2
+Django>=4.2
 djangorestframework
 django-cors-headers
 drf-spectacular
@@ -6,3 +6,4 @@ django-filter
 Pillow
 python-decouple
 psycopg2-binary
+djangorestframework-simplejwt

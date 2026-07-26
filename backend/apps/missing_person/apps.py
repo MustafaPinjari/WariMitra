@@ -1,5 +1,6 @@
-from django.apps import AppConfig
+﻿from django.apps import AppConfig
 
 
 class MissingPersonConfig(AppConfig):
-    name = "missing_person"
+    name = 'apps.missing_person'
+

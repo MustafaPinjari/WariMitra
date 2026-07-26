@@ -1,5 +1,6 @@
-from django.apps import AppConfig
+﻿from django.apps import AppConfig
 
 
 class SosConfig(AppConfig):
-    name = "sos"
+    name = 'apps.sos'
+

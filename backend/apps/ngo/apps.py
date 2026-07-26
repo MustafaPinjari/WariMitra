@@ -1,5 +1,6 @@
-from django.apps import AppConfig
+﻿from django.apps import AppConfig
 
 
 class NgoConfig(AppConfig):
-    name = "ngo"
+    name = 'apps.ngo'
+
