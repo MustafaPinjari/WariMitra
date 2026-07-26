@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import '../widgets/spring_button.dart';
+import 'nearby_services_screen.dart';
+import 'missing_person_screen.dart';
+import 'family_locator_screen.dart';
+import 'temple_queue_screen.dart';
 import 'dart:ui';
 
 class HomeScreen extends StatelessWidget {
@@ -68,11 +72,16 @@ class HomeScreen extends StatelessWidget {
                       color: Colors.white.withOpacity(0.7),
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
                   
                   // Status Glass Card
                   SpringButton(
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const FamilyLocatorScreen()),
+                      );
+                    },
                     child: Container(
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.05),
@@ -98,7 +107,7 @@ class HomeScreen extends StatelessWidget {
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text("Current Location", style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12)),
+                                    Text("Live GPS & Dindi Group", style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12)),
                                     const SizedBox(height: 4),
                                     const Text("Sector 4, Alandi Route", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
                                   ],
@@ -119,7 +128,7 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                   
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 28),
                   const Text("Quick Actions", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
                   const SizedBox(height: 16),
                   
@@ -131,10 +140,10 @@ class HomeScreen extends StatelessWidget {
                     crossAxisSpacing: 16,
                     mainAxisSpacing: 16,
                     children: [
-                      _buildActionCard(Icons.local_hospital, "Medical Camp", Colors.blue),
-                      _buildActionCard(Icons.directions_bus, "Transport", Colors.green),
-                      _buildActionCard(Icons.restaurant, "Food/Water", Colors.amber),
-                      _buildActionCard(Icons.temple_hindu, "Darshan Info", Colors.purple),
+                      _buildActionCard(context, Icons.medical_services_rounded, "Nearby Services", Colors.blue, const NearbyServicesScreen()),
+                      _buildActionCard(context, Icons.person_search_rounded, "Missing Person", Colors.orange, const MissingPersonScreen()),
+                      _buildActionCard(context, Icons.groups_rounded, "Family Locator", Colors.teal, const FamilyLocatorScreen()),
+                      _buildActionCard(context, Icons.temple_hindu_rounded, "Temple Queue", Colors.purple, const TempleQueueScreen()),
                     ],
                   )
                 ],
@@ -146,9 +155,14 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildActionCard(IconData icon, String title, Color color) {
+  Widget _buildActionCard(BuildContext context, IconData icon, String title, Color color, Widget destinationScreen) {
     return SpringButton(
-      onTap: () {},
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => destinationScreen),
+        );
+      },
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.05),
