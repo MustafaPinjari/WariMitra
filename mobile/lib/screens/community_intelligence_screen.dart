@@ -57,7 +57,7 @@ class _CommunityIntelligenceScreenState extends State<CommunityIntelligenceScree
       _reports[index]['userVoted'] = true;
     });
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('👍 Thank you! Citizen verification registered.'), backgroundColor: Colors.emerald),
+      const SnackBar(content: Text('👍 Thank you! Citizen verification registered.'), backgroundColor: Color(0xFF10B981)),
     );
   }
 
@@ -170,9 +170,9 @@ class _CommunityIntelligenceScreenState extends State<CommunityIntelligenceScree
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: Colors.emerald.withValues(alpha: 0.2),
+                                  color: const Color(0xFF10B981).withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: Colors.emerald.withValues(alpha: 0.4)),
+                                  border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
                                 ),
                                 child: Text(
                                   item['confidence'],
