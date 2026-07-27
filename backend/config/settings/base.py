@@ -24,7 +24,8 @@ INSTALLED_APPS = [
     'authentication', 'users', 'pilgrims', 'dindi', 'volunteers',
     'ngo', 'medical', 'police', 'temple', 'government',
     'community', 'sos', 'missing_person', 'navigation', 'maps',
-    'notifications', 'analytics', 'reports', 'weather', 'media', 'audit', 'ai_predictions'
+    'notifications', 'analytics', 'reports', 'weather', 'media', 'audit', 'ai_predictions',
+    'heritage', 'lost_found', 'sanitation'
 ]]
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',

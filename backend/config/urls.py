@@ -12,6 +12,9 @@ urlpatterns = [
     path('api/v1/temple/', include('apps.temple.urls')),
     path('api/v1/ngo/', include('apps.ngo.urls')),
     path('api/v1/ai/', include('apps.ai_predictions.urls')),
+    path('api/v1/heritage/', include('apps.heritage.urls')),
+    path('api/v1/lost-found/', include('apps.lost_found.urls')),
+    path('api/v1/sanitation/', include('apps.sanitation.urls')),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
 ]

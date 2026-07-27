@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:ui';
+import 'theme/app_theme.dart';
 import 'screens/home_screen.dart';
 import 'screens/sos_screen.dart';
 import 'screens/services_screen.dart';
@@ -16,18 +17,15 @@ class WariMitraApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'WariMitra',
-      theme: ThemeData(
-        primarySwatch: Colors.orange,
-        scaffoldBackgroundColor: const Color(0xFF0F1115),
-      ),
+      title: 'WariMitra • वारीमित्र',
+      theme: AppTheme.darkTheme,
       home: const AppEntry(),
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
-/// AppEntry shows the SplashScreen first, then transitions to MainNavigation.
+/// AppEntry shows SplashScreen first, then transitions to MainNavigation.
 class AppEntry extends StatefulWidget {
   const AppEntry({Key? key}) : super(key: key);
 
@@ -50,7 +48,6 @@ class _AppEntryState extends State<AppEntry> {
   }
 }
 
-
 class MainNavigation extends StatefulWidget {
   const MainNavigation({Key? key}) : super(key: key);
 
@@ -63,68 +60,104 @@ class _MainNavigationState extends State<MainNavigation> {
   
   final List<Widget> _screens = [
     const HomeScreen(),
-    SOSScreen(),
+    const SOSScreen(),
     const ServicesScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F1115),
+      backgroundColor: AppTheme.bgDark,
       extendBody: true,
       body: Stack(
         children: [
           _screens[_currentIndex],
+
+          // Floating Navigation Bar with Safety Padding
           Positioned(
-            bottom: 30,
-            left: 40,
-            right: 40,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(30),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                child: Container(
-                  height: 65,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(color: Colors.white.withOpacity(0.1)),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildNavItem(Icons.home_rounded, 0),
-                      _buildNavItem(Icons.warning_rounded, 1, isSos: true),
-                      _buildNavItem(Icons.handshake_rounded, 2),
-                    ],
+            bottom: 20,
+            left: 20,
+            right: 20,
+            child: SafeArea(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(26),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.marathaNavy.withValues(alpha: 0.92),
+                      borderRadius: BorderRadius.circular(26),
+                      border: Border.all(color: AppTheme.bhagwaPrimary.withValues(alpha: 0.35), width: 1.2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          blurRadius: 25,
+                          offset: const Offset(0, 10),
+                        )
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildNavItem(Icons.home_rounded, 'गृह • Home', 0),
+                        _buildNavItem(Icons.warning_amber_rounded, 'आणीबाणी • SOS', 1, isSos: true),
+                        _buildNavItem(Icons.handshake_rounded, 'सेवा • Relief', 2),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          )
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildNavItem(IconData icon, int index, {bool isSos = false}) {
+  Widget _buildNavItem(IconData icon, String label, int index, {bool isSos = false}) {
     final isSelected = _currentIndex == index;
-    final color = isSos 
-        ? Colors.red 
-        : isSelected ? Colors.orange : Colors.white.withOpacity(0.4);
-    
+    final activeColor = isSos ? AppTheme.sosRed : AppTheme.bhagwaPrimary;
+    final inactiveColor = Colors.white.withValues(alpha: 0.5);
+
     return GestureDetector(
       onTap: () => setState(() => _currentIndex = index),
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: const Duration(milliseconds: 220),
         curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected && !isSos ? Colors.orange.withOpacity(0.15) : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
+          color: isSelected 
+              ? activeColor.withValues(alpha: 0.18) 
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(18),
+          border: isSelected 
+              ? Border.all(color: activeColor.withValues(alpha: 0.4), width: 1)
+              : Border.all(color: Colors.transparent),
         ),
-        child: Icon(icon, color: color, size: isSelected ? 28 : 24),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon, 
+              color: isSelected ? activeColor : inactiveColor, 
+              size: isSelected ? 24 : 22,
+            ),
+            if (isSelected) ...[
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: activeColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ]
+          ],
+        ),
       ),
     );
   }

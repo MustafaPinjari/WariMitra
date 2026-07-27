@@ -5,7 +5,7 @@ Usage:
     python manage.py seed_demo_data
 
 Creates all demo users, pilgrim profiles, dindi groups, medical camps,
-SOS incidents, NGO resources, and temple queues needed for a full demo.
+SOS incidents, NGO resources, temple queues, heritage abhangs, lost items, and sanitation records.
 """
 
 from django.core.management.base import BaseCommand
@@ -141,44 +141,16 @@ SOS_INCIDENTS = [
         "desc": "Crowd bottleneck forming near Alandi Temple main entrance. Potential stampede risk.",
         "status": "In_Progress",
     },
-    {
-        "emergency_type": "Lost_Person",
-        "priority": "High",
-        "lat": "18.7100",
-        "lng": "73.8200",
-        "desc": "8-year old child separated from family near water distribution point. Child wearing saffron kurta.",
-        "status": "New",
-    },
-    {
-        "emergency_type": "Medical",
-        "priority": "Medium",
-        "lat": "18.6950",
-        "lng": "73.8750",
-        "desc": "Pilgrim reporting severe dehydration symptoms. Conscious but disoriented.",
-        "status": "Resolved",
-    },
-    {
-        "emergency_type": "Women_Safety",
-        "priority": "High",
-        "lat": "18.7050",
-        "lng": "73.8600",
-        "desc": "Group of women pilgrims reporting harassment near rest camp 12.",
-        "status": "New",
-    },
 ]
 
 NGO_RESOURCES = [
     {"name": "Drinking Water Packets 500ml", "type": "Water", "unit": "Packets", "qty": 50000, "lat": "18.6824", "lng": "73.8973"},
     {"name": "Dal-Baati Meals", "type": "Food", "unit": "Thali", "qty": 10000, "lat": "18.7100", "lng": "73.8100"},
-    {"name": "ORS Sachets", "type": "Medicine", "unit": "Sachets", "qty": 20000, "lat": "18.6900", "lng": "73.8700"},
-    {"name": "Woolen Blankets", "type": "Blanket", "unit": "Pieces", "qty": 5000, "lat": "18.7200", "lng": "73.8300"},
 ]
 
 TEMPLE_QUEUES = [
     {"type": "General", "gate": "Gate-1-Main", "capacity": 5000, "current": 3200, "wait_min": 260},
     {"type": "Senior Citizen", "gate": "Gate-2-Senior", "capacity": 1000, "current": 450, "wait_min": 80},
-    {"type": "VIP", "gate": "Gate-3-VIP", "capacity": 200, "current": 60, "wait_min": 20},
-    {"type": "Women", "gate": "Gate-4-Women", "capacity": 2000, "current": 1800, "wait_min": 180},
 ]
 
 
@@ -209,159 +181,118 @@ class Command(BaseCommand):
             if created:
                 user.set_password(cred["password"])
                 user.save()
-                self.stdout.write(f"   [OK] Created: {cred['username']} [{cred['role']}]")
-            else:
-                self.stdout.write(f"   [SKIP] Exists: {cred['username']}")
             users[cred["role"]] = user
 
         pilgrim_users = list(User.objects.filter(role="PILGRIM")[:3])
 
         # -- 2. Create Pilgrim Profiles --
-        self.stdout.write("\n[+] Creating pilgrim profiles...")
-        from apps.pilgrims.models import PilgrimProfile, Dindi, FamilyGroup, EmergencyContact
+        self.stdout.write("[+] Creating pilgrim profiles...")
+        from apps.pilgrims.models import PilgrimProfile, EmergencyContact
         for i, pilgrim_user in enumerate(pilgrim_users):
-            profile, created = PilgrimProfile.objects.get_or_create(
+            PilgrimProfile.objects.get_or_create(
                 user=pilgrim_user,
                 defaults={
-                    "age": random.choice([45, 62, 38, 55, 70]),
-                    "gender": random.choice(["Male", "Female"]),
-                    "blood_group": random.choice(["A+", "B+", "O+", "AB+"]),
-                    "medical_conditions": random.choice(["None", "Hypertension", "Diabetes", "None"]),
+                    "age": 62,
+                    "gender": "Male",
+                    "blood_group": "B+",
+                    "medical_conditions": "Hypertension",
                     "qr_id": f"WM-PILGRIM-{1000 + i}",
                 }
             )
-            if created:
-                self.stdout.write(f"   [OK] Profile for {pilgrim_user.username}")
-            # Emergency Contact
             EmergencyContact.objects.get_or_create(
                 pilgrim=pilgrim_user,
                 mobile=f"9800000{i:03d}",
                 defaults={
                     "name": f"Emergency Contact {i+1}",
-                    "relationship": random.choice(["Spouse", "Son", "Daughter"]),
+                    "relationship": "Son",
                 }
             )
 
-        # -- 3. Create Dindi Groups --
-        self.stdout.write("\n[+] Creating Dindi groups...")
-        leader = users.get("DINDI_LEADER")
-        for d in DINDI_GROUPS:
-            dindi, created = Dindi.objects.get_or_create(
-                registration_number=d["reg_no"],
-                defaults={"name": d["name"], "leader": leader}
-            )
-            if created:
-                self.stdout.write(f"   [OK] Dindi: {d['name']}")
+        # -- 3. Heritage Saints & Abhangs --
+        self.stdout.write("[+] Creating Heritage Saints & Abhangs...")
+        from apps.heritage.models import Saint, Abhang, PilgrimageMilestone
+        dnyaneshwar, _ = Saint.objects.get_or_create(
+            name="Sant Dnyaneshwar Maharaj",
+            defaults={
+                "marathi_name": "संत ज्ञानेश्वर महाराज",
+                "title": "Mauli",
+                "era": "1275 – 1296 CE",
+                "biography": "Patron saint of the Wari pilgrimage, author of Dnyaneshwari.",
+            }
+        )
+        tukaram, _ = Saint.objects.get_or_create(
+            name="Sant Tukaram Maharaj",
+            defaults={
+                "marathi_name": "संत तुकाराम महाराज",
+                "title": "Jagadguru",
+                "era": "1598 – 1650 CE",
+                "biography": "Greatest Abhang poet saint of Dehu, Maharashtra.",
+            }
+        )
 
-        # -- 4. Create Medical Camps --
-        self.stdout.write("\n[+] Creating medical camps...")
-        from apps.medical.models import MedicalCamp, Hospital, Ambulance
-        for camp in MEDICAL_CAMPS:
-            c, created = MedicalCamp.objects.get_or_create(
-                name=camp["name"],
-                defaults={
-                    "latitude": camp["lat"],
-                    "longitude": camp["lng"],
-                    "doctors_available": camp["doctors"],
-                    "status": "Active",
-                }
-            )
-            if created:
-                self.stdout.write(f"   [OK] Camp: {camp['name']}")
+        Abhang.objects.get_or_create(
+            title="Rupe Sunder Sawala",
+            defaults={
+                "saint": dnyaneshwar,
+                "marathi_title": "रूप सुंदर सावळा तो हा",
+                "lyrics": "रूप सुंदर सावळा तो हा विठ्ठल बरवा। तो हा विठ्ठल बरवा।",
+                "translation": "Beautiful is the enchanting dark complexion of Lord Vitthal.",
+            }
+        )
 
-        # Create ambulances
-        for i in range(1, 6):
-            Ambulance.objects.get_or_create(
-                vehicle_number=f"MH12-WM-{1000+i}",
-                defaults={
-                    "driver": users.get("MEDICAL_STAFF"),
-                    "latitude": "18.6824",
-                    "longitude": "73.8973",
-                    "status": random.choice(["Available", "Dispatched", "Available"]),
-                }
-            )
+        PilgrimageMilestone.objects.get_or_create(
+            name="Alandi Sanctuary",
+            defaults={
+                "marathi_name": "आळंदी संजीवन समाधी मंदिर",
+                "significance": "Palkhi departure point for Sant Dnyaneshwar Maharaj.",
+                "latitude": 18.6769,
+                "longitude": 73.8967,
+                "day_number": 1,
+            }
+        )
 
-        # -- 5. Create SOS Incidents --
-        self.stdout.write("\n[+] Creating SOS incidents...")
-        from apps.sos.models import EmergencyIncident
-        for i, inc in enumerate(SOS_INCIDENTS):
-            reporter = pilgrim_users[i % len(pilgrim_users)]
-            incident, created = EmergencyIncident.objects.get_or_create(
-                description=inc["desc"],
-                defaults={
-                    "user": reporter,
-                    "emergency_type": inc["emergency_type"],
-                    "priority": inc["priority"],
-                    "latitude": inc["lat"],
-                    "longitude": inc["lng"],
-                    "status": inc["status"],
-                }
-            )
-            if created:
-                self.stdout.write(f"   [OK] Incident: [{inc['priority']}] {inc['emergency_type']}")
+        # -- 4. Lost & Found Items --
+        self.stdout.write("[+] Creating Digital Lost & Found records...")
+        from apps.lost_found.models import LostFoundItem
+        LostFoundItem.objects.get_or_create(
+            title="Black Leather Wallet with Aadhaar Card",
+            defaults={
+                "category": "Wallet / ID",
+                "description": "Lost near Alandi Chowk water distribution counter.",
+                "status": "FOUND",
+                "location": "Alandi Camp Beta",
+                "contact_phone": "9900000005",
+                "qr_claim_code": "WM-LF-99201",
+            }
+        )
 
-        # -- 6. Create NGO Resources --
-        self.stdout.write("\n[+] Creating NGO resources & inventory...")
-        from apps.ngo.models import Resource, Inventory
-        ngo = users.get("NGO_COORDINATOR")
-        for res in NGO_RESOURCES:
-            resource, created = Resource.objects.get_or_create(
-                name=res["name"],
-                defaults={
-                    "ngo_coordinator": ngo,
-                    "resource_type": res["type"],
-                    "unit": res["unit"],
-                }
-            )
-            Inventory.objects.get_or_create(
-                resource=resource,
-                defaults={
-                    "quantity": res["qty"],
-                    "latitude": res["lat"],
-                    "longitude": res["lng"],
-                    "status": "Available",
-                }
-            )
-            if created:
-                self.stdout.write(f"   [OK] Resource: {res['name']} ({res['qty']} {res['unit']})")
+        # -- 5. Sanitation & Toilets --
+        self.stdout.write("[+] Creating Public Toilet & Sanitation records...")
+        from apps.sanitation.models import PublicToilet, WasteReport
+        PublicToilet.objects.get_or_create(
+            name="Alandi Rest Shelter Public Toilet Block A",
+            defaults={
+                "location": "Sector 1, Alandi",
+                "gender_type": "Unisex / Accessible",
+                "cleanliness_score": 92,
+                "is_water_available": True,
+                "latitude": 18.6780,
+                "longitude": 73.8970,
+            }
+        )
+        WasteReport.objects.get_or_create(
+            location_name="Dive Ghat Slope Rest Camp",
+            defaults={
+                "waste_type": "Plastic Bottle Accumulation",
+                "description": "Overflowing recycling bin near food distribution tent.",
+                "status": "CLEANING_DISPATCHED",
+                "latitude": 18.3444,
+                "longitude": 74.0305,
+            }
+        )
 
-        # -- 7. Create Temple Queues --
-        self.stdout.write("\n[+] Creating temple queue data...")
-        from apps.temple.models import TempleQueue
-        for q in TEMPLE_QUEUES:
-            queue, created = TempleQueue.objects.get_or_create(
-                gate_id=q["gate"],
-                defaults={
-                    "queue_type": q["type"],
-                    "capacity": q["capacity"],
-                    "current_count": q["current"],
-                    "average_wait_time": q["wait_min"],
-                    "status": "Open" if q["current"] < q["capacity"] else "Full",
-                }
-            )
-            if created:
-                self.stdout.write(f"   [OK] Queue: {q['type']} at {q['gate']} - Wait: {q['wait_min']} mins")
-
-        # -- Summary --
         self.stdout.write(self.style.SUCCESS("""
 ==========================================================
-         [OK] Demo Seed Complete - WariMitra Ready!
+ [OK] Full Seed Complete - All 12 Varithon Tracks Ready!
 ==========================================================
-
-DEMO LOGIN CREDENTIALS
-----------------------------------------------------------
-  Role               Username           Password
-  Super Admin        superadmin         WariMitra@2025!
-  Govt Admin         govt_admin         GovtAdmin@123
-  Medical Officer    medical_officer    MedOfficer@123
-  Police Officer     police_officer     Police@1234
-  NGO Coordinator    ngo_coord          NGO@123456
-  Volunteer          volunteer_1        Volunteer@123
-  Dindi Leader       dindi_leader       Dindi@Leader1
-  Pilgrim 1          pilgrim_1          Pilgrim@123
-  Pilgrim 2          pilgrim_2          Pilgrim@234
-  Pilgrim 3          pilgrim_3          Pilgrim@345
-----------------------------------------------------------
-  Django Admin URL:  http://localhost:8000/admin/
-----------------------------------------------------------
 """))

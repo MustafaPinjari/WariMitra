@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
+import '../theme/app_theme.dart';
 
 class SplashScreen extends StatefulWidget {
   final VoidCallback onComplete;
@@ -55,36 +56,19 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         return Opacity(
           opacity: _fadeOut.value,
           child: Scaffold(
-            backgroundColor: const Color(0xFF0F1115),
+            backgroundColor: AppTheme.bgDark,
             body: Stack(
               children: [
-                // Ambient background glow — orange
+                // Bhagwa Saffron Glow - Top Center
                 Positioned(
-                  top: -80,
-                  left: -80,
+                  top: -60,
+                  left: MediaQuery.of(context).size.width / 2 - 175,
                   child: Container(
                     width: 350,
                     height: 350,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: const Color(0xFFFF6B00).withOpacity(0.12),
-                    ),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 120, sigmaY: 120),
-                      child: Container(color: Colors.transparent),
-                    ),
-                  ),
-                ),
-                // Ambient background glow — green (bottom right)
-                Positioned(
-                  bottom: -80,
-                  right: -80,
-                  child: Container(
-                    width: 300,
-                    height: 300,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: const Color(0xFF2D6A4F).withOpacity(0.12),
+                      color: AppTheme.bhagwaPrimary.withValues(alpha: 0.2),
                     ),
                     child: BackdropFilter(
                       filter: ImageFilter.blur(sigmaX: 120, sigmaY: 120),
@@ -93,7 +77,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   ),
                 ),
 
-                // Centered content
+                // Centered Brand Content
                 Center(
                   child: FadeTransition(
                     opacity: _fadeIn,
@@ -102,34 +86,55 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Web logo (WariMitra_WebLogo) used on splash
-                          Image.asset(
-                            'assets/images/splash_logo.png',
-                            width: 220,
-                            height: 220,
-                            fit: BoxFit.contain,
+                          Container(
+                            width: 110,
+                            height: 110,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: const LinearGradient(
+                                colors: [AppTheme.bhagwaBright, AppTheme.sacredGold],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppTheme.bhagwaPrimary.withValues(alpha: 0.4),
+                                  blurRadius: 30,
+                                  spreadRadius: 5,
+                                )
+                              ]
+                            ),
+                            child: Image.asset('assets/web_logo.png', fit: BoxFit.cover),
                           ),
-                          const SizedBox(height: 32),
-                          // Tagline
-                          Text(
-                            'साथ चालू, सुरक्षित पोहोचू',
+                          const SizedBox(height: 24),
+                          const Text(
+                            "वारीमित्र",
                             style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.white.withOpacity(0.6),
-                              fontWeight: FontWeight.w400,
+                              fontSize: 32,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            "साथ चालू, सुरक्षित पोहोचू",
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: AppTheme.bhagwaBright,
+                              fontWeight: FontWeight.w600,
                               letterSpacing: 0.5,
                             ),
                           ),
-                          const SizedBox(height: 60),
-                          // Loading indicator
+                          const SizedBox(height: 50),
                           SizedBox(
-                            width: 180,
+                            width: 160,
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(4),
                               child: LinearProgressIndicator(
-                                backgroundColor: Colors.white.withOpacity(0.08),
-                                color: const Color(0xFFFF6B00),
-                                minHeight: 2,
+                                backgroundColor: Colors.white.withValues(alpha: 0.08),
+                                color: AppTheme.bhagwaPrimary,
+                                minHeight: 3,
                               ),
                             ),
                           ),
