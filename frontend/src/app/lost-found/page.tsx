@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, QrCode, Plus, ChevronRight, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
-import GoogleMapContainer from '@/components/maps/GoogleMapContainer';
+import dynamic from 'next/dynamic';
+const GoogleMapContainer = dynamic(() => import('@/components/maps/GoogleMapContainer'), { ssr: false });
 import { lostFoundService } from '@/lib/api';
 
 export default function LostFoundPage() {

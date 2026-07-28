@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   MapPin, 
   Navigation, 
@@ -11,6 +11,9 @@ import {
   Radio
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import DOMPurify from 'dompurify';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 // Live Wari Entities across Maharashtra Route (Actual Lat/Lng Coordinates)
 interface Entity {
@@ -55,96 +58,74 @@ interface GoogleMapContainerProps {
   activeRole?: string;
 }
 
-export default function GoogleMapContainer({ activeRole = "Government Mission Control" }: GoogleMapContainerProps) {
+function GoogleMapContainer({ activeRole = "Government Mission Control" }: GoogleMapContainerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const leafletMapRef = useRef<any>(null);
   const markersMapRef = useRef<Map<string, any>>(new Map());
   const [selectedEntity, setSelectedEntity] = useState<Entity | null>(null);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (!containerRef.current || leafletMapRef.current) return;
 
-    // Load Leaflet CSS dynamically if not present
-    if (!document.getElementById('leaflet-css')) {
-      const link = document.createElement('link');
-      link.id = 'leaflet-css';
-      link.rel = 'stylesheet';
-      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-      document.head.appendChild(link);
-    }
+    // Initialize Leaflet Map centered on Pandharpur Wari Route in Maharashtra
+    const map = L.map(containerRef.current, {
+      center: [18.2000, 74.5000],
+      zoom: 9,
+      zoomControl: false,
+      attributionControl: false,
+    });
 
-    const initLeafletMap = () => {
-      if (!containerRef.current || !(window as any).L || leafletMapRef.current) return;
+    leafletMapRef.current = map;
 
-      const L = (window as any).L;
+    // Add CartoDB Dark Matter tile layer (100% Free real interactive street map tiles)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19,
+      subdomains: 'abcd',
+    }).addTo(map);
 
-      // Initialize Leaflet Map centered on Pandharpur Wari Route in Maharashtra
-      const map = L.map(containerRef.current, {
-        center: [18.2000, 74.5000],
-        zoom: 9,
-        zoomControl: false,
-        attributionControl: false,
-      });
+    // Add Zoom Control to Top Left
+    L.control.zoom({ position: 'topleft' }).addTo(map);
 
-      leafletMapRef.current = map;
+    // Draw Palkhi Route Polyline with Glowing Bhagwa Saffron stroke
+    const polyline = L.polyline(PALKHI_ROUTE_COORDS, {
+      color: '#E85D04',
+      weight: 5,
+      opacity: 0.9,
+      dashArray: '10, 8',
+      lineCap: 'round',
+    }).addTo(map);
 
-      // Add CartoDB Dark Matter tile layer (100% Free real interactive street map tiles)
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19,
-        subdomains: 'abcd',
+    // Fit bounds to show entire route
+    map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+
+    // Create Custom Circle Markers for Entities
+    INITIAL_ENTITIES.forEach(entity => {
+      const marker = L.circleMarker([entity.lat, entity.lng], {
+        radius: entity.isMoving ? 9 : 11,
+        fillColor: entity.color,
+        color: '#FFFFFF',
+        weight: 2,
+        opacity: 1,
+        fillOpacity: 0.9,
       }).addTo(map);
 
-      // Add Zoom Control to Top Left
-      L.control.zoom({ position: 'topleft' }).addTo(map);
-
-      // Draw Palkhi Route Polyline with Glowing Bhagwa Saffron stroke
-      const polyline = L.polyline(PALKHI_ROUTE_COORDS, {
-        color: '#E85D04',
-        weight: 5,
-        opacity: 0.9,
-        dashArray: '10, 8',
-        lineCap: 'round',
-      }).addTo(map);
-
-      // Fit bounds to show entire route
-      map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
-
-      // Create Custom Circle Markers for Entities
-      INITIAL_ENTITIES.forEach(entity => {
-        const marker = L.circleMarker([entity.lat, entity.lng], {
-          radius: entity.isMoving ? 9 : 11,
-          fillColor: entity.color,
-          color: '#FFFFFF',
-          weight: 2,
-          opacity: 1,
-          fillOpacity: 0.9,
-        }).addTo(map);
-
-        // Bind interactive tooltip and click handler
-        marker.bindTooltip(`<b>${entity.title}</b><br><span style="color:#F97316;">${entity.marathiTitle}</span>`, {
-          direction: 'top',
-          offset: [0, -10],
-          className: 'leaflet-custom-tooltip',
-        });
-
-        marker.on('click', () => {
-          setSelectedEntity(entity);
-        });
-
-        markersMapRef.current.set(entity.id, marker);
+      // Bind interactive tooltip and click handler
+      // Sanitize tooltip HTML to prevent XSS vulnerabilities
+      const tooltipHtml = DOMPurify.sanitize(
+        `<b>${entity.title}</b><br><span style="color:#F97316;">${entity.marathiTitle}</span>`
+      );
+      marker.bindTooltip(tooltipHtml, {
+        direction: 'top',
+        offset: [0, -10],
+        className: 'leaflet-custom-tooltip',
       });
-    };
 
-    // Load Leaflet JS dynamically
-    if ((window as any).L) {
-      initLeafletMap();
-    } else {
-      const script = document.createElement('script');
-      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-      script.async = true;
-      script.onload = initLeafletMap;
-      document.head.appendChild(script);
-    }
+      marker.on('click', () => {
+        setSelectedEntity(entity);
+      });
+
+      markersMapRef.current.set(entity.id, marker);
+    });
 
     return () => {
       if (leafletMapRef.current) {
@@ -231,3 +212,5 @@ export default function GoogleMapContainer({ activeRole = "Government Mission Co
     </div>
   );
 }
+
+export default React.memo(GoogleMapContainer);

@@ -11,7 +11,8 @@ import {
   UtensilsCrossed,
   AlertTriangle
 } from 'lucide-react';
-import GoogleMapContainer from '@/components/maps/GoogleMapContainer';
+import dynamic from 'next/dynamic';
+const GoogleMapContainer = dynamic(() => import('@/components/maps/GoogleMapContainer'), { ssr: false });
 import { ngoService } from '@/lib/api';
 
 export default function NGOSupplyChainPage() {

@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Trash2, Plus, ChevronRight, CheckCircle2, Droplets } from 'lucide-react';
-import GoogleMapContainer from '@/components/maps/GoogleMapContainer';
+import dynamic from 'next/dynamic';
+const GoogleMapContainer = dynamic(() => import('@/components/maps/GoogleMapContainer'), { ssr: false });
 
 export default function SanitationPage() {
   const [drawerOpen, setDrawerOpen] = useState(true);

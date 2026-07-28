@@ -15,7 +15,8 @@ import {
   Activity,
   MapPin
 } from 'lucide-react';
-import GoogleMapContainer from '@/components/maps/GoogleMapContainer';
+import dynamic from 'next/dynamic';
+const GoogleMapContainer = dynamic(() => import('@/components/maps/GoogleMapContainer'), { ssr: false });
 
 export default function GovernmentMissionControlPage() {
   const [drawerOpen, setDrawerOpen] = useState(true);
