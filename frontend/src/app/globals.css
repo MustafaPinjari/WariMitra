@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+:root {
+  /* WariMitra Bhagwa & Royal Maratha Design Tokens */
+  --color-bhagwa: #E85D04;
+  --color-bhagwa-hover: #F97316;
+  --color-maratha-navy: #0F172A;
+  --color-sacred-gold: #D97706;
+  --color-vithoba-maroon: #7C2D12;
+  
+  --background: #0B0F19;
+  --surface-card: #131B2E;
+  --foreground: #F8FAFC;
+  --border-muted: rgba(255, 255, 255, 0.12);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans Devanagari', sans-serif;
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbars for clean UI */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(232, 93, 4, 0.4);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(232, 93, 4, 0.8);
+}
+
+/* Wari Heritage Micro-Animations & Buttons */
+:root {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+h1, h2, h3, h4 {
+  letter-spacing: -0.02em;
+  font-optical-sizing: auto;
+}
+
+button, .emil-btn {
+  transition: transform 160ms var(--ease-out), filter 200ms ease, opacity 200ms ease, background-color 200ms ease;
+}
+
+button:active, .emil-btn:active {
+  transform: scale(0.97);
+}
+
+/* Glassmorphism utility with Bhagwa accent glow */
+.glass-bhagwa {
+  background: rgba(19, 27, 46, 0.85);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(232, 93, 4, 0.25);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+}
+
+.glass-navy {
+  background: rgba(15, 23, 42, 0.90);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+}
