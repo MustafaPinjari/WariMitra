@@ -5,15 +5,16 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies for PostgreSQL and build tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy and install dependencies
-COPY requirements/base.txt /app/requirements/base.txt
-RUN pip install --no-cache-dir -r requirements/base.txt daphne gunicorn
+# Copy and install python requirements
+COPY requirements/ /app/requirements/
+COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backend codebase
 COPY . /app/

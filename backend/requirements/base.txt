@@ -7,3 +7,8 @@ Pillow
 python-decouple
 psycopg2-binary
 djangorestframework-simplejwt
+dj-database-url
+channels
+daphne
+gunicorn
+django-extensions
