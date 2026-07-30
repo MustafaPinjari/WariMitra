@@ -34,7 +34,7 @@ api.interceptors.response.use(
 
 // Authentication Service
 export const authService = {
-  login: (credentials: { username: string; role?: string }) => 
+  login: (credentials: { username: string; password?: string }) => 
     api.post('/auth/login/', credentials),
   getProfile: () => api.get('/auth/profile/'),
 };
@@ -50,11 +50,11 @@ export const sosService = {
 
 // Community Intelligence Service
 export const communityService = {
-  getReports: () => api.get('/community/'),
+  getReports: () => api.get('/community/reports/'),
   submitReport: (data: { category: string; description: string; image?: string }) => 
-    api.post('/community/', data),
+    api.post('/community/reports/', data),
   verifyReport: (id: string, action: 'confirm' | 'reject') => 
-    api.post(`/community/${id}/verify/`, { action }),
+    api.post(`/community/reports/${id}/verify/`, { action }),
 };
 
 // Medical Operations Service

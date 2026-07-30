@@ -1,21 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:ui';
 import '../theme/app_theme.dart';
 import '../widgets/spring_button.dart';
-import '../main.dart';
+import '../providers/auth_provider.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _usernameController = TextEditingController(text: 'pilgrim_1');
   final _passwordController = TextEditingController(text: 'Pilgrim@123');
-  String _selectedRole = 'PILGRIM';
-  bool _isLoading = false;
 
   final List<Map<String, String>> _demoAccounts = [
     {'role': 'PILGRIM', 'user': 'pilgrim_1', 'pass': 'Pilgrim@123', 'label': 'वारकरी (Pilgrim)'},
@@ -26,35 +25,55 @@ class _LoginScreenState extends State<LoginScreen> {
     {'role': 'NGO_COORDINATOR', 'user': 'ngo_coord', 'pass': 'NGO@123456', 'label': 'स्वयंसेवी संस्था'},
   ];
 
-  void _handleLogin() async {
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 500));
-    setState(() => _isLoading = false);
+  Future<void> _handleLogin() async {
+    final username = _usernameController.text.trim();
+    final password = _passwordController.text.trim();
 
-    if (mounted) {
+    if (username.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('✅ स्वागत आहे! (Logged in as ${_usernameController.text})'),
-          backgroundColor: AppTheme.bhagwaPrimary,
+        const SnackBar(
+          content: Text('कृपया username आणि password टाका'),
+          backgroundColor: AppTheme.sosRed,
         ),
       );
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const MainNavigation()),
+      return;
+    }
+
+    final success = await ref.read(authProvider.notifier).login(username, password);
+
+    if (!mounted) return;
+
+    if (!success) {
+      final error = ref.read(authProvider).errorMessage ?? 'Login failed';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ $error'),
+          backgroundColor: AppTheme.sosRed,
+        ),
       );
     }
+    // On success, main.dart's authProvider watch will auto-navigate to MainNavigation
   }
 
   void _selectDemoAccount(Map<String, String> acc) {
     setState(() {
-      _selectedRole = acc['role']!;
       _usernameController.text = acc['user']!;
       _passwordController.text = acc['pass']!;
     });
   }
 
   @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
+    final isLoading = authState.isLoading;
+
     return Scaffold(
       backgroundColor: AppTheme.bgDark,
       body: Stack(
@@ -83,7 +102,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 10),
-                  // Logo Emblem
                   Center(
                     child: Container(
                       width: 90,
@@ -93,9 +111,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         gradient: const LinearGradient(colors: [AppTheme.bhagwaBright, AppTheme.sacredGold]),
                         boxShadow: [
                           BoxShadow(color: AppTheme.bhagwaPrimary.withValues(alpha: 0.4), blurRadius: 20)
-                        ]
+                        ],
                       ),
-                      child: Image.asset('assets/flutter_logo.png', fit: BoxFit.cover)
+                      child: Image.asset('assets/flutter_logo.png', fit: BoxFit.cover),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -129,22 +147,36 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 28),
 
                   SpringButton(
-                    onTap: _isLoading ? null : _handleLogin,
+                    onTap: isLoading ? null : _handleLogin,
                     child: Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(colors: [AppTheme.bhagwaPrimary, AppTheme.bhagwaBright]),
+                        gradient: LinearGradient(
+                          colors: isLoading
+                              ? [Colors.grey.shade700, Colors.grey.shade600]
+                              : [AppTheme.bhagwaPrimary, AppTheme.bhagwaBright],
+                        ),
                         borderRadius: BorderRadius.circular(18),
                         boxShadow: [
-                          BoxShadow(color: AppTheme.bhagwaPrimary.withValues(alpha: 0.4), blurRadius: 15, offset: const Offset(0, 5))
+                          BoxShadow(
+                            color: AppTheme.bhagwaPrimary.withValues(alpha: isLoading ? 0.1 : 0.4),
+                            blurRadius: 15,
+                            offset: const Offset(0, 5),
+                          )
                         ],
                       ),
                       child: Center(
-                        child: Text(
-                          _isLoading ? 'प्रमाणित करत आहे...' : 'लॉगिन करा • Sign In',
-                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white),
-                        ),
+                        child: isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                              )
+                            : const Text(
+                                'लॉगिन करा • Sign In',
+                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white),
+                              ),
                       ),
                     ),
                   ),
@@ -173,6 +205,27 @@ class _LoginScreenState extends State<LoginScreen> {
                         onPressed: () => _selectDemoAccount(acc),
                       );
                     }).toList(),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info_outline_rounded, color: Colors.blueAccent, size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Demo: Select a role chip above to auto-fill credentials',
+                            style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 11),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),

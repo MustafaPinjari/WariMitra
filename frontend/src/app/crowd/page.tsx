@@ -1,12 +1,23 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Users, TrendingUp, AlertTriangle, MapPin, Compass } from 'lucide-react';
 import InteractiveMap from '@/components/maps/InteractiveMap';
+import { aiPredictionService } from '@/lib/api';
 
 export default function CrowdIntelPage() {
   const [filter, setFilter] = useState('all');
+  const [forecasts, setForecasts] = useState<any[]>([]);
+
+  useEffect(() => {
+    aiPredictionService.getCrowdForecasts()
+      .then(res => {
+        const data = Array.isArray(res.data) ? res.data : res.data.results || [];
+        setForecasts(data);
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="space-y-6 pb-12 p-4 sm:p-6 max-w-7xl mx-auto">

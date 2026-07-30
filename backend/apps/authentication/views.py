@@ -52,3 +52,27 @@ class VerifyOTPView(APIView):
                 
             return Response({"message": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class LoginWithUserView(APIView):
+    """Username/password login that returns tokens + full user object."""
+    permission_classes = []
+
+    def post(self, request):
+        from django.contrib.auth import authenticate
+        username = request.data.get('username', '').strip()
+        password = request.data.get('password', '').strip()
+
+        if not username or not password:
+            return Response({'detail': 'Username and password are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = authenticate(request, username=username, password=password)
+        if user is None:
+            return Response({'detail': 'Invalid credentials. Check username and password.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'user': UserSerializer(user).data,
+        }, status=status.HTTP_200_OK)

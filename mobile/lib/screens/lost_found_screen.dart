@@ -1,8 +1,88 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../services/api_service.dart';
 
-class LostFoundScreen extends StatelessWidget {
+class LostFoundScreen extends StatefulWidget {
   const LostFoundScreen({Key? key}) : super(key: key);
+
+  @override
+  State<LostFoundScreen> createState() => _LostFoundScreenState();
+}
+
+class _LostFoundScreenState extends State<LostFoundScreen> {
+  final _titleController = TextEditingController();
+  final _locationController = TextEditingController();
+  final _descController = TextEditingController();
+  final _contactController = TextEditingController();
+  String _category = 'Bag';
+  bool _isSubmitting = false;
+
+  List<dynamic> _items = [];
+  bool _loadingItems = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadItems();
+  }
+
+  Future<void> _loadItems() async {
+    try {
+      final response = await ApiService.dio.get('/lost-found/items/');
+      final data = response.data;
+      setState(() {
+        _items = data is List ? data : (data['results'] ?? []);
+        _loadingItems = false;
+      });
+    } catch (_) {
+      setState(() => _loadingItems = false);
+    }
+  }
+
+  Future<void> _submitItem() async {
+    if (_titleController.text.trim().isEmpty || _locationController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Item title and location are required'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+    setState(() => _isSubmitting = true);
+    try {
+      await ApiService.dio.post('/lost-found/items/', data: {
+        'title': _titleController.text.trim(),
+        'category': _category,
+        'description': _descController.text.trim(),
+        'location': _locationController.text.trim(),
+        'contact_phone': _contactController.text.trim(),
+      });
+      _titleController.clear();
+      _locationController.clear();
+      _descController.clear();
+      _contactController.clear();
+      _loadItems();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ Item Registered! Check list below.'), backgroundColor: Colors.cyan),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ ${ApiService.errorMessage(e)}'), backgroundColor: Colors.red),
+        );
+      }
+    }
+    setState(() => _isSubmitting = false);
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _locationController.dispose();
+    _descController.dispose();
+    _contactController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,20 +112,15 @@ class LostFoundScreen extends StatelessWidget {
                   const Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'हरवलेल्या वस्तू व व्यक्ती',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-                      ),
-                      Text(
-                        'Digital Lost & Found Management',
-                        style: TextStyle(fontSize: 11, color: Colors.cyanAccent, fontWeight: FontWeight.bold),
-                      ),
+                      Text('हरवलेल्या वस्तू व व्यक्ती', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                      Text('Digital Lost & Found Management', style: TextStyle(fontSize: 11, color: Colors.cyanAccent, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ],
               ),
               const SizedBox(height: 24),
 
+              // Report form
               Container(
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
@@ -58,29 +133,109 @@ class LostFoundScreen extends StatelessWidget {
                   children: [
                     const Text('वस्तूची नोंद करा • Report Item', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
                     const SizedBox(height: 14),
-                    TextFormField(
-                      style: const TextStyle(color: Colors.white, fontSize: 13),
-                      decoration: const InputDecoration(labelText: 'वस्तूचे नाव • Item Title'),
+
+                    DropdownButtonFormField<String>(
+                      value: _category,
+                      dropdownColor: AppTheme.surfaceDark,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(labelText: 'Category'),
+                      items: ['Bag', 'Phone', 'ID Card', 'Jewellery', 'Clothing', 'Other']
+                          .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                          .toList(),
+                      onChanged: (val) => setState(() => _category = val!),
                     ),
                     const SizedBox(height: 12),
+
                     TextFormField(
+                      controller: _titleController,
                       style: const TextStyle(color: Colors.white, fontSize: 13),
-                      decoration: const InputDecoration(labelText: 'ठिकाण • Location Lost/Found'),
+                      decoration: const InputDecoration(labelText: 'वस्तूचे नाव • Item Title *'),
+                    ),
+                    const SizedBox(height: 10),
+
+                    TextFormField(
+                      controller: _locationController,
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                      decoration: const InputDecoration(labelText: 'ठिकाण • Location *'),
+                    ),
+                    const SizedBox(height: 10),
+
+                    TextFormField(
+                      controller: _descController,
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                      maxLines: 2,
+                      decoration: const InputDecoration(labelText: 'Description'),
+                    ),
+                    const SizedBox(height: 10),
+
+                    TextFormField(
+                      controller: _contactController,
+                      keyboardType: TextInputType.phone,
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                      decoration: const InputDecoration(labelText: 'Contact Phone'),
                     ),
                     const SizedBox(height: 16),
+
                     ElevatedButton.icon(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('✅ वस्तूची नोंद झाली! (Item Registered)'), backgroundColor: Colors.cyan)
-                        );
-                      },
+                      onPressed: _isSubmitting ? null : _submitItem,
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.cyan),
-                      icon: const Icon(Icons.qr_code_scanner_rounded),
-                      label: const Text('नोंद करा व क्यूआर कोड मिळवा'),
-                    )
+                      icon: _isSubmitting
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Icon(Icons.qr_code_scanner_rounded),
+                      label: const Text('नोंद करा • Submit'),
+                    ),
                   ],
                 ),
               ),
+
+              const SizedBox(height: 24),
+
+              Row(
+                children: [
+                  const Text('Recent Reports', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                  const Spacer(),
+                  IconButton(icon: const Icon(Icons.refresh_rounded, color: Colors.cyan, size: 20), onPressed: _loadItems),
+                ],
+              ),
+              const SizedBox(height: 10),
+
+              if (_loadingItems)
+                const Center(child: CircularProgressIndicator(color: Colors.cyan))
+              else if (_items.isEmpty)
+                const Text('No items reported yet', style: TextStyle(color: Colors.grey))
+              else
+                ..._items.take(10).map((item) => Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surfaceDark,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.cyan.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      const CircleAvatar(
+                        backgroundColor: Color(0x1A00BCD4),
+                        child: Icon(Icons.inventory_2_rounded, color: Colors.cyan),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(item['title']?.toString() ?? '', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            Text('${item['category']} • ${item['location']}', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(color: Colors.cyan.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
+                        child: Text(item['status']?.toString() ?? 'REPORTED', style: const TextStyle(color: Colors.cyan, fontSize: 10, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                )),
             ],
           ),
         ),

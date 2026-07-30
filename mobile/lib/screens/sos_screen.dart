@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'dart:async';
 import '../theme/app_theme.dart';
 import '../widgets/spring_button.dart';
+import '../services/api_service.dart';
+import '../services/location_service.dart';
 
 class SOSScreen extends StatefulWidget {
   const SOSScreen({Key? key}) : super(key: key);
@@ -14,8 +16,20 @@ class SOSScreen extends StatefulWidget {
 class _SOSScreenState extends State<SOSScreen> with SingleTickerProviderStateMixin {
   late AnimationController _holdController;
   bool _isActivated = false;
+  bool _isSending = false;
   int _cancelCountdown = 5;
   Timer? _countdownTimer;
+  String? _activeIncidentId;
+  String _gpsInfo = 'Getting location...';
+  double? _lat;
+  double? _lng;
+
+  // Mock responder data (shown after SOS activation)
+  final List<Map<String, dynamic>> _responders = [
+    {'icon': Icons.local_hospital_rounded, 'title': 'रुग्णवाहिका', 'eta': 'ETA: 4 mins', 'color': Color(0xFF10B981)},
+    {'icon': Icons.security_rounded, 'title': 'पोलीस गस्त पथक', 'eta': 'ETA: 6 mins', 'color': Colors.indigoAccent},
+    {'icon': Icons.volunteer_activism_rounded, 'title': 'जवळचे मदतनीस', 'eta': 'ETA: 2 mins', 'color': AppTheme.bhagwaBright},
+  ];
 
   @override
   void initState() {
@@ -24,12 +38,27 @@ class _SOSScreenState extends State<SOSScreen> with SingleTickerProviderStateMix
       vsync: this,
       duration: const Duration(seconds: 3),
     );
-
     _holdController.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         _triggerEmergencyBroadcast();
       }
     });
+    _initLocation();
+  }
+
+  Future<void> _initLocation() async {
+    final pos = await LocationService.getCurrentPosition();
+    if (mounted) {
+      setState(() {
+        if (pos != null) {
+          _lat = pos.latitude;
+          _lng = pos.longitude;
+          _gpsInfo = '${pos.latitude.toStringAsFixed(4)}° N, ${pos.longitude.toStringAsFixed(4)}° E';
+        } else {
+          _gpsInfo = 'Location unavailable';
+        }
+      });
+    }
   }
 
   void _onHoldStart() {
@@ -45,13 +74,39 @@ class _SOSScreenState extends State<SOSScreen> with SingleTickerProviderStateMix
     }
   }
 
-  void _triggerEmergencyBroadcast() {
+  Future<void> _triggerEmergencyBroadcast() async {
     HapticFeedback.vibrate();
     setState(() {
       _isActivated = true;
+      _isSending = true;
       _cancelCountdown = 5;
     });
 
+    // Call backend SOS API
+    try {
+      final response = await ApiService.dio.post('/sos/', data: {
+        'emergency_type': 'Medical',
+        'priority': 'Critical',
+        'latitude': _lat ?? 18.3444,
+        'longitude': _lng ?? 74.0305,
+        'description': 'SOS triggered from WariMitra app',
+      });
+      _activeIncidentId = response.data['id']?.toString();
+    } catch (e) {
+      // SOS sent best-effort; show a warning but keep activated
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('⚠️ Network issue: ${ApiService.errorMessage(e)}. Local alert active.'),
+            backgroundColor: AppTheme.sacredGold,
+          ),
+        );
+      }
+    }
+
+    setState(() => _isSending = false);
+
+    // Countdown timer
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_cancelCountdown > 1) {
         setState(() => _cancelCountdown--);
@@ -61,11 +116,20 @@ class _SOSScreenState extends State<SOSScreen> with SingleTickerProviderStateMix
     });
   }
 
-  void _cancelEmergency() {
+  Future<void> _cancelEmergency() async {
     _countdownTimer?.cancel();
     _holdController.reset();
+
+    // If an incident was created, close it
+    if (_activeIncidentId != null) {
+      try {
+        await ApiService.dio.post('/sos/$_activeIncidentId/close/');
+      } catch (_) {}
+    }
+
     setState(() {
       _isActivated = false;
+      _activeIncidentId = null;
     });
     HapticFeedback.mediumImpact();
   }
@@ -102,24 +166,44 @@ class _SOSScreenState extends State<SOSScreen> with SingleTickerProviderStateMix
                     onPressed: () => Navigator.pop(context),
                   ),
                   const SizedBox(width: 10),
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'आणीबाणी SOS कंसोल',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-                      ),
-                      Text(
-                        '३ सेकंद दाबून ठेवा • Live Emergency Dispatch',
-                        style: TextStyle(fontSize: 11, color: AppTheme.sosRed, fontWeight: FontWeight.bold),
-                      ),
-                    ],
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'आणीबाणी SOS कंसोल',
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                        Text(
+                          '३ सेकंद दाबून ठेवा • Live Emergency Dispatch',
+                          style: TextStyle(fontSize: 11, color: AppTheme.sosRed, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
+
+              // GPS Status
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.location_on_rounded, size: 14, color: _lat != null ? AppTheme.bhagwaBright : Colors.grey),
+                    const SizedBox(width: 6),
+                    Text(_gpsInfo, style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.7))),
+                  ],
+                ),
+              ),
+
               const Spacer(),
 
-              // Hold to activate SOS core
               if (!_isActivated) ...[
                 GestureDetector(
                   onTapDown: (_) => _onHoldStart(),
@@ -128,7 +212,6 @@ class _SOSScreenState extends State<SOSScreen> with SingleTickerProviderStateMix
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      // Radial Progress Ring
                       SizedBox(
                         width: 220,
                         height: 220,
@@ -144,8 +227,6 @@ class _SOSScreenState extends State<SOSScreen> with SingleTickerProviderStateMix
                           },
                         ),
                       ),
-
-                      // Inner Panic Button Core
                       Container(
                         width: 180,
                         height: 180,
@@ -169,9 +250,12 @@ class _SOSScreenState extends State<SOSScreen> with SingleTickerProviderStateMix
                           children: [
                             const Icon(Icons.touch_app_rounded, size: 48, color: Colors.white),
                             const SizedBox(height: 8),
-                            Text(
-                              _holdController.isAnimating ? 'HOLD...' : 'दाबा (SOS)',
-                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1),
+                            AnimatedBuilder(
+                              animation: _holdController,
+                              builder: (context, _) => Text(
+                                _holdController.isAnimating ? 'HOLD...' : 'दाबा (SOS)',
+                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1),
+                              ),
                             ),
                           ],
                         ),
@@ -185,7 +269,7 @@ class _SOSScreenState extends State<SOSScreen> with SingleTickerProviderStateMix
                   style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.6), fontWeight: FontWeight.bold),
                 ),
               ] else ...[
-                // ACTIVE BROADCAST DISPATCH STATE
+                // ACTIVE SOS STATE
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -195,27 +279,42 @@ class _SOSScreenState extends State<SOSScreen> with SingleTickerProviderStateMix
                   ),
                   child: Column(
                     children: [
-                      const Row(
+                      Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.warning_amber_rounded, color: AppTheme.sosRed, size: 28),
-                          SizedBox(width: 8),
-                          Text('आणीबाणी अलर्ट सक्रिय', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppTheme.sosRed)),
+                          const Icon(Icons.warning_amber_rounded, color: AppTheme.sosRed, size: 28),
+                          const SizedBox(width: 8),
+                          Text(
+                            _isSending ? 'अलर्ट पाठवत आहे...' : 'आणीबाणी अलर्ट सक्रिय',
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppTheme.sosRed),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 12),
-                      Text('GPS: 18.3444° N, 74.0305° E (Dive Ghat)', style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.9), fontWeight: FontWeight.bold)),
+                      Text(
+                        'GPS: $_gpsInfo',
+                        style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.9), fontWeight: FontWeight.bold),
+                      ),
                       const SizedBox(height: 16),
 
-                      if (_cancelCountdown > 0) ...[
-                        Text('रद्द करण्यासाठी उर्वरित वेळ: $_cancelCountdown s', style: const TextStyle(fontSize: 13, color: AppTheme.sacredGold, fontWeight: FontWeight.bold)),
+                      if (_cancelCountdown > 1) ...[
+                        Text(
+                          'रद्द करण्यासाठी उर्वरित वेळ: $_cancelCountdown s',
+                          style: const TextStyle(fontSize: 13, color: AppTheme.sacredGold, fontWeight: FontWeight.bold),
+                        ),
                         const SizedBox(height: 12),
                         SpringButton(
                           onTap: _cancelEmergency,
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(16)),
-                            child: const Text('अलर्ट रद्द करा (CANCEL)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Text(
+                              'अलर्ट रद्द करा (CANCEL)',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                            ),
                           ),
                         ),
                       ],
@@ -225,10 +324,13 @@ class _SOSScreenState extends State<SOSScreen> with SingleTickerProviderStateMix
 
                 const SizedBox(height: 24),
 
-                // Responders ETA
-                _buildResponderETATile(Icons.local_hospital_rounded, 'रुग्णवाहिका MH12-WM-1001', 'ETA: 4 मिनिटे', const Color(0xFF10B981)),
-                _buildResponderETATile(Icons.security_rounded, 'पोलीस गस्त पथक ९', 'ETA: 6 मिनिटे', Colors.indigoAccent),
-                _buildResponderETATile(Icons.volunteer_activism_rounded, 'मदतनीस (Priya S.)', 'ETA: 2 मिनिटे (150m)', AppTheme.bhagwaBright),
+                // Responders list
+                ..._responders.map((r) => _buildResponderETATile(
+                  r['icon'] as IconData,
+                  r['title'] as String,
+                  r['eta'] as String,
+                  r['color'] as Color,
+                )),
               ],
 
               const Spacer(),
@@ -250,7 +352,10 @@ class _SOSScreenState extends State<SOSScreen> with SingleTickerProviderStateMix
       ),
       child: Row(
         children: [
-          CircleAvatar(backgroundColor: accentColor.withValues(alpha: 0.2), child: Icon(icon, color: accentColor)),
+          CircleAvatar(
+            backgroundColor: accentColor.withValues(alpha: 0.2),
+            child: Icon(icon, color: accentColor),
+          ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(

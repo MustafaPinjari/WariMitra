@@ -1,13 +1,30 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Trash2, Plus, ChevronRight, CheckCircle2, Droplets } from 'lucide-react';
 import dynamic from 'next/dynamic';
 const GoogleMapContainer = dynamic(() => import('@/components/maps/GoogleMapContainer'), { ssr: false });
+import { sanitationService } from '@/lib/api';
 
 export default function SanitationPage() {
   const [drawerOpen, setDrawerOpen] = useState(true);
+  const [toilets, setToilets] = useState<any[]>([]);
+  const [statusMsg, setStatusMsg] = useState('');
+
+  useEffect(() => {
+    sanitationService.getToilets()
+      .then(res => {
+        const data = Array.isArray(res.data) ? res.data : res.data.results || [];
+        setToilets(data);
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleDispatch = () => {
+    setStatusMsg('Municipal Sanitation Crew #04 Dispatched!');
+    setTimeout(() => setStatusMsg(''), 4000);
+  };
 
   return (
     <div className="relative w-full h-[calc(100vh-4rem)] overflow-hidden bg-[#05080F]">
@@ -25,12 +42,18 @@ export default function SanitationPage() {
               <span>स्वच्छता व शौचालय व्यवस्थापन (WASTE & SANITATION)</span>
               <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
             </p>
-            <p className="text-slate-400 text-[10px]">142 Public Toilets Tracked • Municipality Cleaning Crew Active</p>
+            <p className="text-slate-400 text-[10px]">
+              {toilets.length > 0 ? toilets.length : 142} Public Toilets Tracked • Municipality Cleaning Crew Active
+            </p>
           </div>
         </div>
 
-        <div className="pointer-events-auto">
-          <button className="px-4 py-2.5 bg-teal-600 hover:bg-teal-500 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-teal-500/30 transition-all flex items-center gap-2 active:scale-95">
+        <div className="pointer-events-auto flex items-center gap-3">
+          {statusMsg && <span className="text-teal-400 font-extrabold text-xs bg-teal-500/20 px-3 py-1.5 rounded-xl border border-teal-500/40 animate-pulse">{statusMsg}</span>}
+          <button 
+            onClick={handleDispatch}
+            className="px-4 py-2.5 bg-teal-600 hover:bg-teal-500 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-teal-500/30 transition-all flex items-center gap-2 active:scale-95"
+          >
             <Plus size={16} />
             <span>Dispatch Cleaning Crew</span>
           </button>

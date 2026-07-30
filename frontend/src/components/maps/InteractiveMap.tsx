@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { MapPin, AlertTriangle, Activity, Tent, Shield, RefreshCw } from 'lucide-react';
+import { MapPin, RefreshCw } from 'lucide-react';
+import { setOptions, importLibrary } from '@googlemaps/js-api-loader';
 
 interface MarkerItem {
   id: string;
@@ -23,12 +24,56 @@ const DEMO_MAP_MARKERS: MarkerItem[] = [
 ];
 
 export default function InteractiveMap({ selectedFilter = 'all' }: { selectedFilter?: string }) {
+  const mapRef = useRef<HTMLDivElement>(null);
   const [activeMarker, setActiveMarker] = useState<MarkerItem | null>(DEMO_MAP_MARKERS[0]);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const filteredMarkers = DEMO_MAP_MARKERS.filter(
     m => selectedFilter === 'all' || m.type === selectedFilter
   );
+
+  useEffect(() => {
+    const initMap = async () => {
+      try {
+        setOptions({
+          key: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
+          v: 'weekly',
+        });
+
+        const { Map, Marker } = await importLibrary('maps') as any;
+
+        if (!mapRef.current) return;
+
+        const map = new Map(mapRef.current, {
+          center: { lat: 18.2000, lng: 74.5000 },
+          zoom: 8,
+          disableDefaultUI: true,
+          styles: [
+            { elementType: "geometry", stylers: [{ color: "#0f172a" }] },
+            { elementType: "labels.text.fill", stylers: [{ color: "#94a3b8" }] },
+            { featureType: "road", elementType: "geometry", stylers: [{ color: "#1e293b" }] },
+            { featureType: "water", elementType: "geometry", stylers: [{ color: "#0284c7" }] }
+          ]
+        });
+
+        filteredMarkers.forEach((item) => {
+          const marker = new Marker({
+            position: { lat: item.lat, lng: item.lng },
+            map: map,
+            title: item.name,
+          });
+
+          marker.addListener('click', () => {
+            setActiveMarker(item);
+          });
+        });
+      } catch (err) {
+        console.warn('[GCP Google Maps InteractiveMap]', err);
+      }
+    };
+
+    initMap();
+  }, [selectedFilter]);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -37,10 +82,10 @@ export default function InteractiveMap({ selectedFilter = 'all' }: { selectedFil
 
   return (
     <div className="relative w-full h-[450px] rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-[#090D16]">
-      {/* Map Header Overlay */}
+      {/* Header Overlay */}
       <div className="absolute top-4 left-4 z-20 flex items-center gap-3 bg-[#0B0F19]/80 backdrop-blur-xl border border-white/15 px-4 py-2 rounded-xl text-xs font-semibold text-white shadow-lg">
         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-        <span>Live GIS Feed — Maharashtra Route</span>
+        <span>GCP Google Maps — Live GIS Layer</span>
         <button
           onClick={handleRefresh}
           className={`ml-2 p-1 hover:bg-white/10 rounded-lg transition-all ${isRefreshing ? 'animate-spin' : ''}`}
@@ -49,58 +94,8 @@ export default function InteractiveMap({ selectedFilter = 'all' }: { selectedFil
         </button>
       </div>
 
-      {/* Styled Vector Canvas Simulation (Dark Cartographic Map) */}
-      <div className="w-full h-full relative bg-gradient-to-br from-[#0B0F19] via-[#0D1322] to-[#080B12] flex items-center justify-center overflow-hidden">
-        {/* Map Grid Lines */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:40px_40px]" />
-        
-        # Route Polyline Glow Curve
-        <svg className="absolute inset-0 w-full h-full stroke-orange-500/30" fill="none">
-          <path d="M 80 320 Q 250 180 450 260 T 800 120" strokeWidth="4" strokeDasharray="8 6" />
-          <path d="M 80 320 Q 250 180 450 260 T 800 120" strokeWidth="8" className="stroke-orange-500/10 blur-sm" />
-        </svg>
-
-        {/* Interactive GIS Markers */}
-        <div className="absolute inset-0 p-8 flex items-center justify-around">
-          {filteredMarkers.map((marker, idx) => {
-            const isSelected = activeMarker?.id === marker.id;
-            return (
-              <motion.div
-                key={marker.id}
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: idx * 0.1, type: 'spring', stiffness: 260, damping: 20 }}
-                onClick={() => setActiveMarker(marker)}
-                className={`relative cursor-pointer group flex flex-col items-center z-10`}
-              >
-                {/* Marker Pulse Halo */}
-                {isSelected && (
-                  <span className="absolute -inset-3 rounded-full bg-orange-500/20 animate-ping opacity-75" />
-                )}
-
-                {/* Marker Badge */}
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center border shadow-xl transition-all transform duration-300 ${
-                  marker.type === 'sos' ? 'bg-red-500/20 border-red-500 text-red-400' :
-                  marker.type === 'medical' ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' :
-                  marker.type === 'queue' ? 'bg-purple-500/20 border-purple-500 text-purple-400' :
-                  marker.type === 'police' ? 'bg-indigo-500/20 border-indigo-500 text-indigo-400' :
-                  'bg-orange-500/20 border-orange-500 text-orange-400'
-                } ${isSelected ? 'scale-125 ring-4 ring-orange-500/40' : 'group-hover:scale-110'}`}>
-                  {marker.type === 'sos' && <AlertTriangle size={18} />}
-                  {marker.type === 'medical' && <Activity size={18} />}
-                  {marker.type === 'queue' && <Tent size={18} />}
-                  {marker.type === 'police' && <Shield size={18} />}
-                  {marker.type === 'water' && <MapPin size={18} />}
-                </div>
-
-                <span className="text-[10px] font-bold text-slate-300 mt-1.5 bg-black/60 px-2 py-0.5 rounded-full border border-white/10 backdrop-blur-md whitespace-nowrap">
-                  {marker.name.split('—')[0]}
-                </span>
-              </motion.div>
-            );
-          })}
-        </div>
-      </div>
+      {/* Google Maps Container */}
+      <div ref={mapRef} className="w-full h-full z-0 bg-[#070A12]" />
 
       {/* Selected Marker Detail Card */}
       {activeMarker && (

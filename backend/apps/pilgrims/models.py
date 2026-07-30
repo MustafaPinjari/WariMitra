@@ -42,3 +42,20 @@ class EmergencyContact(TimestampModel):
     
     def __str__(self):
         return f"{self.name} ({self.relationship}) - {self.mobile}"
+
+
+class LiveLocation(models.Model):
+    """Stores the latest known GPS position of a user. Updated on app open/SOS."""
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        primary_key=True,
+        related_name='live_location'
+    )
+    latitude = models.DecimalField(max_digits=9, decimal_places=6)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6)
+    updated_at = models.DateTimeField(auto_now=True)
+    battery_level = models.IntegerField(null=True, blank=True)  # 0-100
+
+    def __str__(self):
+        return f"{self.user.username} @ ({self.latitude}, {self.longitude})"

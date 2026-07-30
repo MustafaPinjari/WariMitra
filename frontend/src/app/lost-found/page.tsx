@@ -13,6 +13,16 @@ export default function LostFoundPage() {
     { id: '1', title: 'Black Leather Wallet with Aadhaar Card', category: 'Wallet / ID', location: 'Alandi Camp Beta', status: 'FOUND', qr_claim_code: 'WM-LF-99201' },
     { id: '2', title: 'Samsung Galaxy Smartphone (Blue)', category: 'Electronics', location: 'Pune Sector 3', status: 'REPORTED', qr_claim_code: 'WM-LF-99202' },
   ]);
+  const [statusMsg, setStatusMsg] = useState('');
+
+  useEffect(() => {
+    lostFoundService.getItems()
+      .then(res => {
+        const data = Array.isArray(res.data) ? res.data : res.data.results || [];
+        if (data.length > 0) setItems(data);
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="relative w-full h-[calc(100vh-4rem)] overflow-hidden bg-[#05080F]">

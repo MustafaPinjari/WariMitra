@@ -6,6 +6,8 @@ import 'screens/home_screen.dart';
 import 'screens/sos_screen.dart';
 import 'screens/services_screen.dart';
 import 'screens/splash_screen.dart';
+import 'screens/login_screen.dart';
+import 'providers/auth_provider.dart';
 
 void main() {
   runApp(const ProviderScope(child: WariMitraApp()));
@@ -25,15 +27,15 @@ class WariMitraApp extends StatelessWidget {
   }
 }
 
-/// AppEntry shows SplashScreen first, then transitions to MainNavigation.
-class AppEntry extends StatefulWidget {
+/// AppEntry shows SplashScreen first, then checks auth and routes accordingly.
+class AppEntry extends ConsumerStatefulWidget {
   const AppEntry({Key? key}) : super(key: key);
 
   @override
-  State<AppEntry> createState() => _AppEntryState();
+  ConsumerState<AppEntry> createState() => _AppEntryState();
 }
 
-class _AppEntryState extends State<AppEntry> {
+class _AppEntryState extends ConsumerState<AppEntry> {
   bool _showSplash = true;
 
   void _onSplashComplete() {
@@ -42,9 +44,27 @@ class _AppEntryState extends State<AppEntry> {
 
   @override
   Widget build(BuildContext context) {
-    return _showSplash
-        ? SplashScreen(onComplete: _onSplashComplete)
-        : const MainNavigation();
+    if (_showSplash) {
+      return SplashScreen(onComplete: _onSplashComplete);
+    }
+
+    final authState = ref.watch(authProvider);
+
+    // While checking existing session, show loading
+    if (authState.isLoading) {
+      return const Scaffold(
+        backgroundColor: AppTheme.bgDark,
+        body: Center(
+          child: CircularProgressIndicator(color: AppTheme.bhagwaPrimary),
+        ),
+      );
+    }
+
+    if (authState.isLoggedIn) {
+      return const MainNavigation();
+    }
+
+    return const LoginScreen();
   }
 }
 
@@ -57,7 +77,7 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
-  
+
   final List<Widget> _screens = [
     const HomeScreen(),
     const SOSScreen(),
@@ -128,11 +148,11 @@ class _MainNavigationState extends State<MainNavigation> {
         curve: Curves.easeOutCubic,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected 
-              ? activeColor.withValues(alpha: 0.18) 
+          color: isSelected
+              ? activeColor.withValues(alpha: 0.18)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(18),
-          border: isSelected 
+          border: isSelected
               ? Border.all(color: activeColor.withValues(alpha: 0.4), width: 1)
               : Border.all(color: Colors.transparent),
         ),
@@ -140,8 +160,8 @@ class _MainNavigationState extends State<MainNavigation> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              icon, 
-              color: isSelected ? activeColor : inactiveColor, 
+              icon,
+              color: isSelected ? activeColor : inactiveColor,
               size: isSelected ? 24 : 22,
             ),
             if (isSelected) ...[

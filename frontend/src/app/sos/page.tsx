@@ -47,16 +47,28 @@ export default function SOSDashboard() {
     overscan: 5,
   });
 
+  const handleResolve = async (id: string) => {
+    try {
+      await sosService.updateStatus(id, 'RESOLVED');
+    } catch (_) {}
+    setIncidents(prev => prev.filter(item => item.id !== id));
+  };
+
   useEffect(() => {
     // Attempt API fetch with fallback to demo SOS records
     sosService.getActiveIncidents()
       .then(res => {
-        if (res.data && Array.isArray(res.data)) {
-          setIncidents(res.data);
+        const data = Array.isArray(res.data) ? res.data : res.data.results || [];
+        if (data.length > 0) {
+          setIncidents(data);
+        } else {
+          setIncidents([
+            { id: 'SOS-1001', severity: 'CRITICAL', incident_type: 'Medical Emergency', latitude: 18.3444, longitude: 74.0305, location: 'Dive Ghat Slope Corridor', timeAgo: '2m ago', assigned: false },
+            { id: 'SOS-1002', severity: 'HIGH', incident_type: 'Heatstroke / Fainting', latitude: 18.5204, longitude: 73.8567, location: 'Pune Sector 2 Checkpoint', timeAgo: '12m ago', assigned: true },
+          ]);
         }
       })
       .catch(() => {
-        // Default demo SOS data
         setIncidents([
           { id: 'SOS-1001', severity: 'CRITICAL', incident_type: 'Medical Emergency', latitude: 18.3444, longitude: 74.0305, location: 'Dive Ghat Slope Corridor', timeAgo: '2m ago', assigned: false },
           { id: 'SOS-1002', severity: 'HIGH', incident_type: 'Heatstroke / Fainting', latitude: 18.5204, longitude: 73.8567, location: 'Pune Sector 2 Checkpoint', timeAgo: '12m ago', assigned: true },
@@ -74,7 +86,6 @@ export default function SOSDashboard() {
         } else {
           setIncidents(prev => {
             const newIncidents = [data.incident, ...prev];
-            // Prevent OOM by capping the incidents array at 500 items
             return newIncidents.slice(0, 500);
           });
         }

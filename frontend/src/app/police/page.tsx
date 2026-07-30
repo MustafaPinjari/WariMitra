@@ -51,7 +51,13 @@ export default function PoliceDispatchConsolePage() {
 
         <div className="pointer-events-auto">
           <button
-            onClick={() => setCorridorActive(!corridorActive)}
+            onClick={async () => {
+              const nextState = !corridorActive;
+              setCorridorActive(nextState);
+              try {
+                await policeService.toggleDiversion('div-1', nextState);
+              } catch (_) {}
+            }}
             className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all shadow-lg flex items-center gap-2 border active:scale-95 ${
               corridorActive 
                 ? 'bg-red-600 text-white border-red-400 animate-pulse shadow-red-500/40' 

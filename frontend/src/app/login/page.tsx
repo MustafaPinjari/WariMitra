@@ -20,29 +20,44 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
-    setTimeout(() => {
+    try {
+      const { authService } = await import('../../lib/api');
+      
+      const response = await authService.login({
+        username,
+        password,
+      });
+
+      const { access, refresh, user } = response.data;
+      
+      // Determine route based on user role or fallback demo
       const selectedDemo = DEMO_ACCOUNTS.find(a => a.username === username);
       const targetRoute = selectedDemo ? selectedDemo.target : '/';
-      
+
       const userObj = {
-        username,
-        role: selectedDemo ? selectedDemo.role : 'Govt Admin',
+        ...user,
         title: selectedDemo ? selectedDemo.desc : 'Government Official',
-        token: 'demo-jwt-token-warimitra-' + Date.now(),
+        token: access,
         defaultRoute: targetRoute,
       };
 
       localStorage.setItem('warimitra_user', JSON.stringify(userObj));
-      document.cookie = `warimitra_token=${userObj.token}; path=/; max-age=86400`;
-      document.cookie = `warimitra_role=${encodeURIComponent(userObj.role)}; path=/; max-age=86400`;
-      setLoading(false);
+      localStorage.setItem('warimitra_token', access);
+      
+      document.cookie = `warimitra_token=${access}; path=/; max-age=86400`;
+      document.cookie = `warimitra_role=${encodeURIComponent(user.role || 'ADMIN')}; path=/; max-age=86400`;
+      
       router.push(targetRoute);
-    }, 600);
+    } catch (err: any) {
+      console.error('Login failed:', err);
+      setError(err.response?.data?.detail || 'Login failed. Please check credentials.');
+      setLoading(false);
+    }
   };
 
   const selectDemoAccount = (acc: typeof DEMO_ACCOUNTS[0]) => {

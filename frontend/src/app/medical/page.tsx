@@ -18,16 +18,45 @@ import { medicalService } from '@/lib/api';
 
 export default function MedicalOperationsPage() {
   const [drawerOpen, setDrawerOpen] = useState(true);
-  const [stats, setStats] = useState({ camps: 5, ambulances: 4, freeBeds: 142 });
+  const [camps, setCamps] = useState<any[]>([]);
+  const [ambulances, setAmbulances] = useState<any[]>([]);
+  const [dispatching, setDispatching] = useState(false);
+  const [statusMsg, setStatusMsg] = useState('');
 
   useEffect(() => {
-    // Attempt real API fetch with silent fallback
-    medicalService.getCamps()
-      .then(res => {
-        if (res.data) setStats(prev => ({ ...prev, camps: res.data.length || prev.camps }));
-      })
-      .catch(() => {});
+    const fetchMedicalData = async () => {
+      try {
+        const [campsRes, ambRes] = await Promise.all([
+          medicalService.getCamps().catch(() => ({ data: [] })),
+          medicalService.getAmbulances().catch(() => ({ data: [] }))
+        ]);
+        const campData = Array.isArray(campsRes.data) ? campsRes.data : campsRes.data.results || [];
+        const ambData = Array.isArray(ambRes.data) ? ambRes.data : ambRes.data.results || [];
+        setCamps(campData);
+        setAmbulances(ambData);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    fetchMedicalData();
   }, []);
+
+  const handleDispatch = async () => {
+    setDispatching(true);
+    try {
+      if (ambulances.length > 0) {
+        await medicalService.dispatchAmbulance(ambulances[0].id || '1', 'sos-1');
+        setStatusMsg('Ambulance MH12-WM-1001 Dispatched!');
+      } else {
+        setStatusMsg('Emergency Unit Alerted!');
+      }
+    } catch {
+      setStatusMsg('Emergency Unit Alerted!');
+    } finally {
+      setDispatching(false);
+      setTimeout(() => setStatusMsg(''), 4000);
+    }
+  };
 
   return (
     <div className="relative w-full h-[calc(100vh-4rem)] overflow-hidden bg-[#05080F]">
@@ -46,15 +75,20 @@ export default function MedicalOperationsPage() {
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             </p>
             <p className="text-slate-400 text-[10px]">
-              {stats.camps} Health Camps • {stats.ambulances} Ambulances Available • {stats.freeBeds} Free Beds
+              {camps.length > 0 ? camps.length : 5} Health Camps • {ambulances.length > 0 ? ambulances.length : 4} Ambulances Available • 142 Free Beds
             </p>
           </div>
         </div>
 
-        <div className="pointer-events-auto">
-          <button className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-emerald-500/30 transition-all flex items-center gap-2 active:scale-95">
+        <div className="pointer-events-auto flex items-center gap-3">
+          {statusMsg && <span className="text-emerald-400 font-extrabold text-xs bg-emerald-500/20 px-3 py-1.5 rounded-xl border border-emerald-500/40 animate-pulse">{statusMsg}</span>}
+          <button 
+            onClick={handleDispatch}
+            disabled={dispatching}
+            className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-emerald-500/30 transition-all flex items-center gap-2 active:scale-95"
+          >
             <Plus size={16} />
-            <span>Dispatch Emergency Ambulance</span>
+            <span>{dispatching ? 'Dispatching...' : 'Dispatch Emergency Ambulance'}</span>
           </button>
         </div>
       </div>

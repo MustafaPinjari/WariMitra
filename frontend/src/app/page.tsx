@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Radio, 
@@ -21,6 +21,38 @@ const GoogleMapContainer = dynamic(() => import('@/components/maps/GoogleMapCont
 export default function GovernmentMissionControlPage() {
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [isPlaying, setIsPlaying] = useState(true);
+  
+  const [incidents, setIncidents] = useState<any[]>([]);
+  const [queues, setQueues] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const { sosService, templeService } = await import('@/lib/api');
+        
+        const [sosRes, queueRes] = await Promise.all([
+          sosService.getActiveIncidents().catch(() => ({ data: [] })),
+          templeService.getQueueStatus().catch(() => ({ data: [] }))
+        ]);
+
+        const sosData = Array.isArray(sosRes.data) ? sosRes.data : sosRes.data.results || [];
+        const queueData = Array.isArray(queueRes.data) ? queueRes.data : queueRes.data.results || [];
+
+        setIncidents(sosData);
+        setQueues(queueData);
+      } catch (err) {
+        console.error('Failed to load dashboard data', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadData();
+    // Refresh every 30s
+    const interval = setInterval(loadData, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="relative w-full h-[calc(100vh-4rem)] overflow-hidden bg-[#05080F]">
@@ -55,11 +87,14 @@ export default function GovernmentMissionControlPage() {
             </div>
             <div>
               <p className="text-slate-400 font-bold text-[9px] uppercase tracking-wider">सर्वोच्च घनता (Density)</p>
-              <p className="text-amber-400 font-extrabold text-xs">4.2 p/m² <span className="text-slate-400 text-[9px]">(Alandi)</span></p>
+              <p className="text-amber-400 font-extrabold text-xs">
+                {queues.length > 0 ? `${queues[0].current_count} pilgrims` : '4.2 p/m²'}
+                <span className="text-slate-400 text-[9px] pl-1">({queues.length > 0 ? queues[0].gate_id : 'Alandi'})</span>
+              </p>
             </div>
             <div>
               <p className="text-slate-400 font-bold text-[9px] uppercase tracking-wider">आणीबाणी (Active SOS)</p>
-              <p className="text-red-400 font-extrabold text-xs">2 Critical</p>
+              <p className="text-red-400 font-extrabold text-xs">{incidents.length > 0 ? `${incidents.length} Critical` : '0 Critical'}</p>
             </div>
             <div className="hidden lg:flex items-center gap-2 pl-2 border-l border-white/10 text-slate-300">
               <CloudSun size={15} className="text-amber-400" />
@@ -111,35 +146,49 @@ export default function GovernmentMissionControlPage() {
 
           {/* Incident Feed Items */}
           <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 text-xs">
-            <div className="p-3 rounded-2xl bg-red-500/10 border border-red-500/40 text-slate-200">
-              <div className="flex justify-between items-start">
-                <span className="font-bold text-red-400 flex items-center gap-1.5 text-xs">
-                  <ShieldAlert size={14} /> Medical Emergency SOS
-                </span>
-                <span className="text-[9px] bg-red-500/20 px-2 py-0.5 rounded font-bold text-red-300">2m ago</span>
-              </div>
-              <p className="text-[11px] text-slate-300 mt-1">Unresponsive pilgrim (Dive Ghat). Ambulance MH12-WM-1001 dispatched (ETA: 3m).</p>
-            </div>
+            {loading && <p className="text-slate-400 text-center py-4">Loading live feed...</p>}
+            
+            {!loading && incidents.length === 0 && (
+              <p className="text-slate-400 text-center py-4">No active incidents</p>
+            )}
 
-            <div className="p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/40 text-slate-200">
-              <div className="flex justify-between items-start">
-                <span className="font-bold text-indigo-300 flex items-center gap-1.5 text-xs">
-                  <MapPin size={14} /> Traffic Diversion Active
-                </span>
-                <span className="text-[9px] bg-indigo-500/20 px-2 py-0.5 rounded font-bold text-indigo-300">8m ago</span>
+            {incidents.map((incident: any) => (
+              <div key={incident.id} className="p-3 rounded-2xl bg-red-500/10 border border-red-500/40 text-slate-200">
+                <div className="flex justify-between items-start">
+                  <span className="font-bold text-red-400 flex items-center gap-1.5 text-xs">
+                    <ShieldAlert size={14} /> {incident.emergency_type} SOS
+                  </span>
+                  <span className="text-[9px] bg-red-500/20 px-2 py-0.5 rounded font-bold text-red-300">Live</span>
+                </div>
+                <p className="text-[11px] text-slate-300 mt-1">{incident.description || 'No description provided'}</p>
+                <p className="text-[10px] text-slate-400 mt-1">Location: {incident.latitude}, {incident.longitude}</p>
               </div>
-              <p className="text-[11px] text-slate-300 mt-1">Jejuri Slope Corridor redirected via Bypass Route B.</p>
-            </div>
+            ))}
+            
+            {/* Fallback Static Items if no dynamic data */}
+            {incidents.length === 0 && !loading && (
+              <>
+                <div className="p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/40 text-slate-200">
+                  <div className="flex justify-between items-start">
+                    <span className="font-bold text-indigo-300 flex items-center gap-1.5 text-xs">
+                      <MapPin size={14} /> Traffic Diversion Active
+                    </span>
+                    <span className="text-[9px] bg-indigo-500/20 px-2 py-0.5 rounded font-bold text-indigo-300">8m ago</span>
+                  </div>
+                  <p className="text-[11px] text-slate-300 mt-1">Jejuri Slope Corridor redirected via Bypass Route B.</p>
+                </div>
 
-            <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/40 text-slate-200">
-              <div className="flex justify-between items-start">
-                <span className="font-bold text-emerald-400 flex items-center gap-1.5 text-xs">
-                  <Activity size={14} /> NGO Water Refill Complete
-                </span>
-                <span className="text-[9px] bg-emerald-500/20 px-2 py-0.5 rounded font-bold text-emerald-300">14m ago</span>
-              </div>
-              <p className="text-[11px] text-slate-300 mt-1">Tanker #WT-04 delivered 50,000L ORS water to Saswad Station 2.</p>
-            </div>
+                <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/40 text-slate-200">
+                  <div className="flex justify-between items-start">
+                    <span className="font-bold text-emerald-400 flex items-center gap-1.5 text-xs">
+                      <Activity size={14} /> NGO Water Refill Complete
+                    </span>
+                    <span className="text-[9px] bg-emerald-500/20 px-2 py-0.5 rounded font-bold text-emerald-300">14m ago</span>
+                  </div>
+                  <p className="text-[11px] text-slate-300 mt-1">Tanker #WT-04 delivered 50,000L ORS water to Saswad Station 2.</p>
+                </div>
+              </>
+            )}
           </div>
         </motion.div>
       </AnimatePresence>

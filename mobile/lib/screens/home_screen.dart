@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:ui';
 import '../theme/app_theme.dart';
 import '../widgets/spring_button.dart';
+import '../providers/auth_provider.dart';
 import 'nearby_services_screen.dart';
 import 'missing_person_screen.dart';
 import 'family_locator_screen.dart';
@@ -10,13 +12,13 @@ import 'community_intelligence_screen.dart';
 import 'heritage_screen.dart';
 import 'lost_found_screen.dart';
 import 'sanitation_screen.dart';
-import 'login_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final auth = ref.watch(authProvider);
     return Scaffold(
       backgroundColor: AppTheme.bgDark,
       body: Stack(
@@ -91,10 +93,10 @@ class HomeScreen extends StatelessWidget {
                             ],
                           ),
                           const SizedBox(height: 6),
-                          const Text(
-                            "नमस्कार वारकरी!",
-                            style: TextStyle(
-                              fontSize: 26, 
+                          Text(
+                            "नमस्कार, ${auth.username.isNotEmpty ? auth.username : 'वारकरी'}!",
+                            style: const TextStyle(
+                              fontSize: 24,
                               fontWeight: FontWeight.w900,
                               color: Colors.white,
                               letterSpacing: -0.5,
@@ -120,11 +122,8 @@ class HomeScreen extends StatelessWidget {
                           ),
                           child: const Icon(Icons.logout_rounded, color: AppTheme.sosRed, size: 20),
                         ),
-                        onPressed: () {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(builder: (context) => const LoginScreen()),
-                          );
+                        onPressed: () async {
+                          await ref.read(authProvider.notifier).logout();
                         },
                       ),
                     ],
