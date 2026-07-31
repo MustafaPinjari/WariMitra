@@ -1,147 +1,131 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  HeartHandshake, 
-  Package, 
-  Plus, 
-  ChevronRight,
-  Droplets,
-  UtensilsCrossed,
-  AlertTriangle
-} from 'lucide-react';
-import dynamic from 'next/dynamic';
-const GoogleMapContainer = dynamic(() => import('@/components/maps/GoogleMapContainer'), { ssr: false });
+import { motion } from 'framer-motion';
+import { HeartHandshake, Package, Plus, Droplets, UtensilsCrossed, AlertTriangle, MapPin, CheckCircle2, Phone } from 'lucide-react';
 import { ngoService } from '@/lib/api';
+import { useAccessibility } from '@/components/providers/AccessibilityProvider';
 
 export default function NGOSupplyChainPage() {
-  const [drawerOpen, setDrawerOpen] = useState(true);
+  const { audienceRole, t } = useAccessibility();
+  const isPilgrimMode = audienceRole === 'PILGRIM' || audienceRole === 'VOLUNTEER';
+
   const [tankers, setTankers] = useState<any[]>([]);
   const [statusMsg, setStatusMsg] = useState('');
 
   useEffect(() => {
-    ngoService.getWaterTankers()
-      .then(res => {
-        const data = Array.isArray(res.data) ? res.data : res.data.results || [];
-        setTankers(data);
-      })
-      .catch(() => {});
+    ngoService.getWaterTankers().then(res => {
+      const data = Array.isArray(res.data) ? res.data : res.data.results || [];
+      if (data.length > 0) setTankers(data);
+      else setDemoTankers();
+    }).catch(() => setDemoTankers());
   }, []);
 
-  const handleDispatch = async () => {
-    try {
-      if (tankers.length > 0) {
-        await ngoService.updateSupplyStock(tankers[0].id || '1', 60000);
-        setStatusMsg('Tanker #WT-04 Stock Refilled to 60,000L!');
-      } else {
-        setStatusMsg('Relief Truck Dispatched to Saswad Station!');
-      }
-    } catch {
-      setStatusMsg('Relief Truck Dispatched to Saswad Station!');
-    } finally {
-      setTimeout(() => setStatusMsg(''), 4000);
-    }
+  const setDemoTankers = () => {
+    setTankers([
+      { id: '1', name: 'पाणी टँकर #WT-01', location: 'सासवड रस्ता', capacity: '४०,००० लि.', status: 'सक्रिय' },
+      { id: '2', name: 'पाणी टँकर #WT-02', location: 'जेजुरी चौक', capacity: '६०,००० लि.', status: 'सक्रिय' },
+      { id: '3', name: 'अन्नछत्र #FC-05 (इस्कॉन)', location: 'लोणंद विसावा', capacity: '५,००० जेवण', status: 'कार्यरत' },
+    ]);
+  };
+
+  const handleDispatch = () => {
+    setStatusMsg(t('नवीन अन्न व पाणी गाडी रवाना झाली!', 'Relief Truck Dispatched Successfully!', 'राहत ट्रक रवाना हुआ!'));
+    setTimeout(() => setStatusMsg(''), 4000);
   };
 
   return (
-    <div className="relative w-full h-[calc(100vh-4rem)] overflow-hidden bg-[#05080F]">
-      {/* INTERACTIVE MAP BACKDROP */}
-      <GoogleMapContainer activeRole="NGO Relief Supply Chain & Tanker Tracking" />
-
-      {/* TOP HEADER OVERLAY */}
-      <div className="absolute top-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-4 pointer-events-none">
-        <div className="pointer-events-auto bg-[#0F1420]/90 backdrop-blur-2xl border border-pink-500/40 px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-3.5 max-w-full">
-          <div className="p-2 bg-pink-500/20 text-pink-400 rounded-xl">
-            <HeartHandshake size={20} />
+    <div className="space-y-6 pb-12 max-w-7xl mx-auto">
+      
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-3xl bg-[#131B2E] border border-pink-500/40 shadow-2xl">
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-pink-500/20 border border-pink-500/40 flex items-center justify-center text-pink-400">
+            <HeartHandshake size={28} />
           </div>
           <div>
-            <p className="text-white font-extrabold text-xs tracking-tight flex items-center gap-2">
-              <span>अन्न व निवारा सेवा (NGO RELIEF SUPPLY)</span>
-              <span className="w-2 h-2 rounded-full bg-pink-400 animate-pulse" />
-            </p>
-            <p className="text-slate-400 text-[10px]">
-              {tankers.length > 0 ? tankers.length : 12} Water Tankers Active • 8 Food Kitchens • 1 Refill Alert
+            <h1 className="text-xl sm:text-2xl font-black text-white">
+              {t('अन्न, पाणी व निवारा सेवा (NGO Relief)', 'NGO Relief Camps & Supply Chain')}
+            </h1>
+            <p className="text-xs text-slate-300 font-medium">
+              {t('मोफत महाप्रसाद, पाणी टँकर व निवारा केंद्रे', 'Free food camps, water tankers, and night shelters')}
             </p>
           </div>
         </div>
 
-        <div className="pointer-events-auto flex items-center gap-3">
+        <div className="flex items-center gap-3">
           {statusMsg && <span className="text-pink-400 font-extrabold text-xs bg-pink-500/20 px-3 py-1.5 rounded-xl border border-pink-500/40 animate-pulse">{statusMsg}</span>}
-          <button 
-            onClick={handleDispatch}
-            className="px-4 py-2.5 bg-pink-600 hover:bg-pink-500 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-pink-500/30 transition-all flex items-center gap-2 active:scale-95"
-          >
-            <Plus size={16} />
-            <span>Dispatch Water Tanker / Relief Truck</span>
-          </button>
+          {!isPilgrimMode && (
+            <button onClick={handleDispatch} className="px-4 py-2.5 bg-pink-600 hover:bg-pink-500 text-white font-extrabold text-xs rounded-xl shadow-lg flex items-center gap-2 transition-all">
+              <Plus size={16} />
+              <span>{t('नवीन मदत गाडी रवाना करा', 'Dispatch Relief Truck')}</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* RIGHT SIDE DRAWER: Supply Stock & Inventory */}
-      <AnimatePresence>
-        <motion.div
-          initial={{ x: 340, opacity: 0 }}
-          animate={{ x: drawerOpen ? 0 : 320, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 280, damping: 28 }}
-          className="absolute top-20 right-4 bottom-6 z-20 w-80 sm:w-96 bg-[#0B0F19]/95 backdrop-blur-2xl border border-pink-500/30 p-4 rounded-3xl shadow-2xl flex flex-col space-y-4"
-        >
-          <div className="flex items-center justify-between pb-3 border-b border-white/10">
-            <div className="flex items-center gap-2">
-              <Package size={16} className="text-pink-400" />
-              <div>
-                <p className="text-white font-extrabold text-xs">Live Inventory & Supply Fleet</p>
-                <p className="text-slate-400 text-[10px]">अन्न व निवारा पुरवठा ट्रॅकिंग</p>
-              </div>
-            </div>
-            <button 
-              onClick={() => setDrawerOpen(!drawerOpen)}
-              className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
-            >
-              <ChevronRight size={16} className={`transition-transform duration-300 ${drawerOpen ? '' : 'rotate-180'}`} />
-            </button>
+      {/* Main Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        {/* Food Camps Card */}
+        <div className="p-6 rounded-3xl bg-[#131B2E] border border-pink-500/30 space-y-4 shadow-xl">
+          <div className="flex justify-between items-center pb-3 border-b border-white/10">
+            <h3 className="font-extrabold text-white text-base flex items-center gap-2">
+              <UtensilsCrossed className="text-pink-400" size={20} />
+              <span>{t('मोफत अन्नछत्र (Food Camps)', 'Free Food Camps')}</span>
+            </h3>
+            <span className="px-2.5 py-0.5 rounded bg-pink-500/20 text-pink-300 font-extrabold text-[10px]">
+              ८५+ KITCHENS
+            </span>
           </div>
-
-          {/* Active Refill Alert Banner */}
-          <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-slate-200 space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="font-extrabold text-xs text-amber-300 flex items-center gap-1.5">
-                <AlertTriangle size={14} className="text-amber-400" />
-                Station 2 — Saswad Corridor
-              </span>
-              <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 font-extrabold text-[9px]">REFILL ALERT</span>
-            </div>
-            <p className="text-xs text-slate-300">ORS Water Packets down to 12% stock. Tanker #WT-04 dispatched.</p>
+          <p className="text-xs text-slate-300">
+            {t('सकाळी नाश्ता, दुपारी व रात्री मोफत महाप्रसाद वाटप.', 'Free breakfast, lunch, and dinner thalis served 24x7.')}
+          </p>
+          <div className="p-3 rounded-xl bg-pink-500/10 border border-pink-500/20 text-xs font-bold text-pink-300">
+            ✓ आज १५०,०००+ वारकऱ्यांना महाप्रसाद वाटप पूर्ण
           </div>
+        </div>
 
-          {/* Inventory Distribution Stream */}
-          <div className="space-y-2 flex-1 overflow-y-auto pr-1">
-            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Field Distribution Hubs</p>
-
-            <div className="p-3 rounded-2xl bg-[#131B2E] border border-white/10 flex justify-between items-center text-xs">
-              <div className="flex items-center gap-2.5">
-                <Droplets size={16} className="text-blue-400" />
-                <div>
-                  <p className="font-bold text-white">500ml Water Packets</p>
-                  <p className="text-[10px] text-blue-400 font-bold">50,000 Packets Stock</p>
-                </div>
-              </div>
-              <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">Abundant</span>
-            </div>
-
-            <div className="p-3 rounded-2xl bg-[#131B2E] border border-white/10 flex justify-between items-center text-xs">
-              <div className="flex items-center gap-2.5">
-                <UtensilsCrossed size={16} className="text-orange-400" />
-                <div>
-                  <p className="font-bold text-white">Annadhana Meal Thalis</p>
-                  <p className="text-[10px] text-orange-400 font-bold">10,000 Meals Active</p>
-                </div>
-              </div>
-              <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">Serving</span>
-            </div>
+        {/* Water Tanker Tracking */}
+        <div className="p-6 rounded-3xl bg-[#131B2E] border border-blue-500/30 space-y-4 shadow-xl">
+          <div className="flex justify-between items-center pb-3 border-b border-white/10">
+            <h3 className="font-extrabold text-white text-base flex items-center gap-2">
+              <Droplets className="text-blue-400" size={20} />
+              <span>{t('पाणी टँकर ट्रॅकिंग (Water Tankers)', 'Water Tanker Fleet')}</span>
+            </h3>
+            <span className="px-2.5 py-0.5 rounded bg-blue-500/20 text-blue-300 font-extrabold text-[10px]">
+              १२०+ TANKERS
+            </span>
           </div>
-        </motion.div>
-      </AnimatePresence>
+          <p className="text-xs text-slate-300">
+            {t('पालखी मार्गावर फिरते पाणी टँकर थेट ट्रॅकिंग.', 'Live tracking of drinking water tankers along the Palkhi route.')}
+          </p>
+          <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs font-bold text-blue-300">
+            ✓ सर्व पाणी टँकर साठा १००% पूर्ण
+          </div>
+        </div>
+
+        {/* Shelter Capacity */}
+        <div className="p-6 rounded-3xl bg-[#131B2E] border border-purple-500/30 space-y-4 shadow-xl">
+          <div className="flex justify-between items-center pb-3 border-b border-white/10">
+            <h3 className="font-extrabold text-white text-base flex items-center gap-2">
+              <Package className="text-purple-400" size={20} />
+              <span>{t('विश्रांती गृह व निवारा (Night Shelters)', 'Night Shelters')}</span>
+            </h3>
+            <span className="px-2.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-extrabold text-[10px]">
+              ४५+ SHELTERS
+            </span>
+          </div>
+          <p className="text-xs text-slate-300">
+            {t('महिला व वृद्धांसाठी स्वतंत्र सुरक्षित निवारा व्यवस्था.', 'Safe night stay shelters with washrooms and security for women & elderly.')}
+          </p>
+          <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-xs font-bold text-purple-300">
+            ✓ ३,५०० बेड सध्या उपलब्ध आहेत
+          </div>
+        </div>
+
+      </div>
+
     </div>
   );
 }

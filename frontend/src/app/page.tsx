@@ -1,219 +1,391 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { 
-  Radio, 
-  Zap, 
-  ChevronRight, 
-  Play, 
-  Pause, 
-  RotateCcw,
-  CloudSun,
-  ShieldAlert,
-  Flame,
-  Activity,
-  MapPin
+  AlertTriangle, Droplets, Utensils, Activity, Tent, Shield, HeartHandshake, 
+  MapPin, Clock, ArrowRight, Sun, Sparkles, Navigation, Users, Search, Radio, CheckCircle2, ChevronRight, Phone, BookOpen
 } from 'lucide-react';
-import dynamic from 'next/dynamic';
-const GoogleMapContainer = dynamic(() => import('@/components/maps/GoogleMapContainer'), { ssr: false });
+import { motion } from 'framer-motion';
+import { useAccessibility } from '@/components/providers/AccessibilityProvider';
 
-export default function GovernmentMissionControlPage() {
-  const [drawerOpen, setDrawerOpen] = useState(true);
-  const [isPlaying, setIsPlaying] = useState(true);
-  
-  const [incidents, setIncidents] = useState<any[]>([]);
-  const [queues, setQueues] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function OverviewPage() {
+  const { audienceRole, t, language } = useAccessibility();
+  const [stats, setStats] = useState({
+    totalPilgrims: 450000,
+    activeSOS: 3,
+    medicalCamps: 28,
+    queueTimeMins: 45,
+    waterPoints: 120,
+    foodCamps: 85,
+    volunteersOnGround: 1250,
+  });
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const { sosService, templeService } = await import('@/lib/api');
-        
-        const [sosRes, queueRes] = await Promise.all([
-          sosService.getActiveIncidents().catch(() => ({ data: [] })),
-          templeService.getQueueStatus().catch(() => ({ data: [] }))
-        ]);
-
-        const sosData = Array.isArray(sosRes.data) ? sosRes.data : sosRes.data.results || [];
-        const queueData = Array.isArray(queueRes.data) ? queueRes.data : queueRes.data.results || [];
-
-        setIncidents(sosData);
-        setQueues(queueData);
-      } catch (err) {
-        console.error('Failed to load dashboard data', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    loadData();
-    // Refresh every 30s
-    const interval = setInterval(loadData, 30000);
-    return () => clearInterval(interval);
-  }, []);
+  const isPilgrimMode = audienceRole === 'PILGRIM' || audienceRole === 'VOLUNTEER';
 
   return (
-    <div className="relative w-full h-[calc(100vh-4rem)] overflow-hidden bg-[#05080F]">
-      {/* MAP BACKDROP */}
-      <GoogleMapContainer activeRole="Government Mission Control" />
+    <div className="space-y-6 max-w-7xl mx-auto pb-12">
+      
+      {/* Top Banner: Warm Welcome & Mission Statement */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-orange-950/80 via-[#131B2E] to-slate-900 border border-orange-500/30 p-6 sm:p-8 shadow-2xl">
+        <div className="absolute top-0 right-0 -mt-12 -mr-12 w-64 h-64 bg-orange-600/20 rounded-full blur-3xl" />
+        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-orange-500/10 border border-orange-500/30 rounded-full text-orange-400 text-xs font-extrabold">
+              <Sparkles size={14} />
+              <span>{t('महाराष्ट्र शासन • आषाढी वारी डिजिटल साथी', 'Maharashtra Govt • Ashadhi Wari Digital Companion')}</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight">
+              {isPilgrimMode 
+                ? t('जय हरी विठ्ठल! वारीमित्र सेवा पोर्टल', 'Jai Hari Vitthal! WariMitra Service Portal')
+                : t('वारीमित्र केंद्रीय नियंत्रण कक्ष', 'WariMitra Central Command Center')}
+            </h1>
+            <p className="text-slate-300 text-xs sm:text-sm max-w-2xl font-medium leading-relaxed">
+              {t(
+                'लाखो वारकऱ्यांच्या सुरक्षित, सुखकर आणि सुव्यवस्थित प्रवासासाठी एकमेव अधिकृत डिजिटल व्यासपीठ.',
+                'The unified digital platform empowering millions of pilgrims, volunteers, medical teams, and government authorities.',
+                'लाखों वारकरियों की सुरक्षित और सुखद यात्रा के लिए आधिकारिक डिजिटल मंच।'
+              )}
+            </p>
+          </div>
 
-      {/* TOP OVERLAY BAR: Non-colliding Grid Header */}
-      <div className="absolute top-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-4 pointer-events-none">
-        
-        {/* Left Telemetry HUD */}
-        <div className="pointer-events-auto bg-[#0F1420]/90 backdrop-blur-2xl border border-orange-500/40 px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-4 max-w-full">
-          <div className="flex items-center gap-2.5">
-            <span className="relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span>
+          {/* Weather & Live Route Widget */}
+          <div className="flex items-center gap-4 bg-white/5 border border-white/10 p-3.5 rounded-2xl backdrop-blur-md">
+            <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+              <Sun size={26} className="animate-spin-slow" />
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 font-bold">{t('आजचा मुक्काम / तापमान', 'Today Stop & Weather')}</p>
+              <p className="text-sm font-black text-white">वाखारी ➔ पंढरपूर • ३१°C</p>
+              <p className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1 mt-0.5">
+                <CheckCircle2 size={12} />
+                <span>{t('मार्ग मोकळा आहे (Route Clear)', 'Route Smooth')}</span>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* -------------------------------------------------------------------------- */}
+      {/* AUDIENCE VIEW 1: PILGRIM / DEVOTEE ULTRA-ACCESSIBLE ACTION GRID            */}
+      {/* -------------------------------------------------------------------------- */}
+      {isPilgrimMode ? (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-extrabold text-white flex items-center gap-2">
+              <Navigation className="text-orange-400" size={20} />
+              <span>{t('वारकरी मुख्य सेवा (Quick Services for Pilgrims)', 'Primary Warkari Services')}</span>
+            </h2>
+            <span className="text-xs text-orange-400 font-bold bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/30">
+              {t('मोठ्या बटणावर टॅप करा', 'Tap any large button')}
             </span>
-            <div>
-              <p className="text-white font-black text-xs tracking-tight uppercase flex items-center gap-1.5">
-                <span>पंढरपूर वारी मिशन कंट्रोल</span>
-                <span className="text-orange-400 font-mono text-[10px]">(GOVT GIS)</span>
-              </p>
-              <p className="text-slate-400 text-[10px]">Real-Time Operational Command</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            
+            {/* Water Locator */}
+            <Link href="/crowd">
+              <motion.div 
+                whileHover={{ scale: 1.02 }}
+                className="p-5 rounded-2xl bg-gradient-to-br from-blue-950/60 to-[#131B2E] border border-blue-500/30 hover:border-blue-400 transition-all shadow-xl cursor-pointer group"
+              >
+                <div className="w-12 h-12 rounded-xl bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-blue-400 mb-3 group-hover:scale-110 transition-transform">
+                  <Droplets size={26} />
+                </div>
+                <h3 className="text-base font-black text-white group-hover:text-blue-300">
+                  {t('पिण्याचे पाणी (Water)', 'Drinking Water')}
+                </h3>
+                <p className="text-xs text-slate-300 mt-1 font-medium">
+                  {t('१२०+ मोफत पाणी वाटप केंद्रे शोधा', 'Locate 120+ free drinking water points')}
+                </p>
+                <div className="mt-3 flex items-center gap-1 text-xs font-bold text-blue-400">
+                  <span>{t('नकाशा पहा', 'View Water Map')}</span>
+                  <ArrowRight size={14} />
+                </div>
+              </motion.div>
+            </Link>
+
+            {/* Food Distribution */}
+            <Link href="/ngo">
+              <motion.div 
+                whileHover={{ scale: 1.02 }}
+                className="p-5 rounded-2xl bg-gradient-to-br from-pink-950/60 to-[#131B2E] border border-pink-500/30 hover:border-pink-400 transition-all shadow-xl cursor-pointer group"
+              >
+                <div className="w-12 h-12 rounded-xl bg-pink-500/20 border border-pink-500/40 flex items-center justify-center text-pink-400 mb-3 group-hover:scale-110 transition-transform">
+                  <Utensils size={26} />
+                </div>
+                <h3 className="text-base font-black text-white group-hover:text-pink-300">
+                  {t('मोफत अन्नछत्र (Food)', 'Free Food Camps')}
+                </h3>
+                <p className="text-xs text-slate-300 mt-1 font-medium">
+                  {t('८५+ महाप्रसाद व नाश्ता केंद्रे', 'Locate 85+ food & tea distribution centers')}
+                </p>
+                <div className="mt-3 flex items-center gap-1 text-xs font-bold text-pink-400">
+                  <span>{t('अन्नछत्र यादी', 'Locate Food')}</span>
+                  <ArrowRight size={14} />
+                </div>
+              </motion.div>
+            </Link>
+
+            {/* Medical Camps & Ambulance */}
+            <Link href="/medical">
+              <motion.div 
+                whileHover={{ scale: 1.02 }}
+                className="p-5 rounded-2xl bg-gradient-to-br from-emerald-950/60 to-[#131B2E] border border-emerald-500/30 hover:border-emerald-400 transition-all shadow-xl cursor-pointer group"
+              >
+                <div className="w-12 h-12 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 mb-3 group-hover:scale-110 transition-transform">
+                  <Activity size={26} />
+                </div>
+                <h3 className="text-base font-black text-white group-hover:text-emerald-300">
+                  {t('वैद्यकीय केंद्र (Medical)', 'Medical Camps')}
+                </h3>
+                <p className="text-xs text-slate-300 mt-1 font-medium">
+                  {t('२८+ मोफत आरोग्य शिबीर व रुग्णवाहिका', 'Find 28+ health camps & ambulances')}
+                </p>
+                <div className="mt-3 flex items-center gap-1 text-xs font-bold text-emerald-400">
+                  <span>{t('आरोग्य मदत', 'Get Medical Help')}</span>
+                  <ArrowRight size={14} />
+                </div>
+              </motion.div>
+            </Link>
+
+            {/* Temple Queue Status */}
+            <Link href="/temple">
+              <motion.div 
+                whileHover={{ scale: 1.02 }}
+                className="p-5 rounded-2xl bg-gradient-to-br from-purple-950/60 to-[#131B2E] border border-purple-500/30 hover:border-purple-400 transition-all shadow-xl cursor-pointer group"
+              >
+                <div className="w-12 h-12 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-400 mb-3 group-hover:scale-110 transition-transform">
+                  <Tent size={26} />
+                </div>
+                <h3 className="text-base font-black text-white group-hover:text-purple-300">
+                  {t('दर्शन रांग (Darshan Queue)', 'Temple Darshan')}
+                </h3>
+                <p className="text-xs text-slate-300 mt-1 font-medium">
+                  {t('श्री विठ्ठल मंदिर सध्याची वेळ: ४५ मि.', 'Current Pandharpur Darshan queue estimate')}
+                </p>
+                <div className="mt-3 flex items-center gap-1 text-xs font-bold text-purple-400">
+                  <span>{t('रांग वेळ पहा', 'Check Queue Time')}</span>
+                  <ArrowRight size={14} />
+                </div>
+              </motion.div>
+            </Link>
+
+            {/* Lost & Found */}
+            <Link href="/lost-found">
+              <motion.div 
+                whileHover={{ scale: 1.02 }}
+                className="p-5 rounded-2xl bg-gradient-to-br from-cyan-950/60 to-[#131B2E] border border-cyan-500/30 hover:border-cyan-400 transition-all shadow-xl cursor-pointer group"
+              >
+                <div className="w-12 h-12 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400 mb-3 group-hover:scale-110 transition-transform">
+                  <Search size={26} />
+                </div>
+                <h3 className="text-base font-black text-white group-hover:text-cyan-300">
+                  {t('हरवलेले व्यक्ती व वस्तू', 'Lost & Found')}
+                </h3>
+                <p className="text-xs text-slate-300 mt-1 font-medium">
+                  {t('नातेवाईक हरवले असल्यास फोटोसह नोंदवा', 'Report lost child/elderly with photo')}
+                </p>
+                <div className="mt-3 flex items-center gap-1 text-xs font-bold text-cyan-400">
+                  <span>{t('शोध घ्या', 'Search & Report')}</span>
+                  <ArrowRight size={14} />
+                </div>
+              </motion.div>
+            </Link>
+
+            {/* Vari Heritage */}
+            <Link href="/heritage">
+              <motion.div 
+                whileHover={{ scale: 1.02 }}
+                className="p-5 rounded-2xl bg-gradient-to-br from-amber-950/60 to-[#131B2E] border border-amber-500/30 hover:border-amber-400 transition-all shadow-xl cursor-pointer group"
+              >
+                <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 mb-3 group-hover:scale-110 transition-transform">
+                  <BookOpen size={26} />
+                </div>
+                <h3 className="text-base font-black text-white group-hover:text-amber-300">
+                  {t('वारी वारसा व अभंग', 'Wari Heritage')}
+                </h3>
+                <p className="text-xs text-slate-300 mt-1 font-medium">
+                  {t('पालखी मार्ग, अभंग गाथा व संत माहिती', 'Palkhi schedule & spiritual hymns')}
+                </p>
+                <div className="mt-3 flex items-center gap-1 text-xs font-bold text-amber-400">
+                  <span>{t('माहिती वाचा', 'Explore Heritage')}</span>
+                  <ArrowRight size={14} />
+                </div>
+              </motion.div>
+            </Link>
+
+            {/* Sanitation & Toilets */}
+            <Link href="/sanitation">
+              <motion.div 
+                whileHover={{ scale: 1.02 }}
+                className="p-5 rounded-2xl bg-gradient-to-br from-teal-950/60 to-[#131B2E] border border-teal-500/30 hover:border-teal-400 transition-all shadow-xl cursor-pointer group"
+              >
+                <div className="w-12 h-12 rounded-xl bg-teal-500/20 border border-teal-500/40 flex items-center justify-center text-teal-400 mb-3 group-hover:scale-110 transition-transform">
+                  <Activity size={26} />
+                </div>
+                <h3 className="text-base font-black text-white group-hover:text-teal-300">
+                  {t('स्वच्छतागृह (Toilets)', 'Sanitation & Toilets')}
+                </h3>
+                <p className="text-xs text-slate-300 mt-1 font-medium">
+                  {t('जवळची मोबाईल स्वच्छतागृहे व स्वच्छता तक्रार', 'Find mobile toilets & report cleanup')}
+                </p>
+                <div className="mt-3 flex items-center gap-1 text-xs font-bold text-teal-400">
+                  <span>{t('स्वच्छतागृह शोधा', 'Locate Toilets')}</span>
+                  <ArrowRight size={14} />
+                </div>
+              </motion.div>
+            </Link>
+
+            {/* Emergency SOS High Priority */}
+            <Link href="/sos">
+              <motion.div 
+                whileHover={{ scale: 1.02 }}
+                className="p-5 rounded-2xl bg-gradient-to-br from-red-950/80 to-[#131B2E] border-2 border-red-500/60 hover:border-red-400 transition-all shadow-2xl cursor-pointer group relative overflow-hidden"
+              >
+                <div className="w-12 h-12 rounded-xl bg-red-600/30 border border-red-500/60 flex items-center justify-center text-red-400 mb-3 group-hover:scale-110 transition-transform">
+                  <AlertTriangle size={26} className="animate-pulse" />
+                </div>
+                <h3 className="text-base font-black text-white group-hover:text-red-300">
+                  {t('आणीबाणी SOS (Emergency)', 'Emergency SOS')}
+                </h3>
+                <p className="text-xs text-slate-300 mt-1 font-medium">
+                  {t('एक टॅप करा! स्वयंसेवक व रुग्णवाहिका येईल', 'One tap alerts volunteers & police')}
+                </p>
+                <div className="mt-3 flex items-center gap-1 text-xs font-extrabold text-red-400">
+                  <span>{t('तात्काळ मदत मागा', 'Trigger SOS Now')}</span>
+                  <ArrowRight size={14} />
+                </div>
+              </motion.div>
+            </Link>
+
+          </div>
+        </div>
+      ) : (
+        
+        /* -------------------------------------------------------------------------- */
+        /* AUDIENCE VIEW 2: GOVERNMENT / OPERATIONAL COMMAND DASHBOARD                */
+        /* -------------------------------------------------------------------------- */
+        <div className="space-y-6">
+          
+          {/* Executive Stats Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-4 rounded-2xl bg-[#131B2E] border border-orange-500/30 shadow-lg">
+              <div className="flex items-center justify-between text-slate-400 text-xs font-bold mb-1">
+                <span>{t('एकूण वारकरी संख्या', 'Total Pilgrims')}</span>
+                <Users size={16} className="text-orange-400" />
+              </div>
+              <p className="text-2xl font-black text-white">{stats.totalPilgrims.toLocaleString()}</p>
+              <p className="text-[11px] text-emerald-400 font-semibold mt-1">↑ +१२,००० आज नवीन प्रविष्ट</p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-[#131B2E] border border-red-500/30 shadow-lg">
+              <div className="flex items-center justify-between text-slate-400 text-xs font-bold mb-1">
+                <span>{t('सक्रिय आणीबाणी SOS', 'Active SOS Calls')}</span>
+                <AlertTriangle size={16} className="text-red-400" />
+              </div>
+              <p className="text-2xl font-black text-red-400">{stats.activeSOS}</p>
+              <p className="text-[11px] text-orange-300 font-semibold mt-1">३ पथके घटनास्थळी रवाना</p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-[#131B2E] border border-emerald-500/30 shadow-lg">
+              <div className="flex items-center justify-between text-slate-400 text-xs font-bold mb-1">
+                <span>{t('वैद्यकीय शिबीरे', 'Health Camps Active')}</span>
+                <Activity size={16} className="text-emerald-400" />
+              </div>
+              <p className="text-2xl font-black text-white">{stats.medicalCamps}</p>
+              <p className="text-[11px] text-emerald-400 font-semibold mt-1">१००% औषध साठा उपलब्ध</p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-[#131B2E] border border-purple-500/30 shadow-lg">
+              <div className="flex items-center justify-between text-slate-400 text-xs font-bold mb-1">
+                <span>{t('दर्शन रांग वेळ', 'Darshan Wait Time')}</span>
+                <Clock size={16} className="text-purple-400" />
+              </div>
+              <p className="text-2xl font-black text-purple-300">{stats.queueTimeMins} मि.</p>
+              <p className="text-[11px] text-slate-400 font-semibold mt-1">पंढरपूर मुख्य मंदिर परिसर</p>
             </div>
           </div>
 
-          <div className="h-6 w-px bg-white/15 hidden sm:block" />
+          {/* Middle Grid: GIS Live Map Preview & AI Predictions */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            {/* GIS Live Map Placeholder */}
+            <div className="lg:col-span-2 p-5 rounded-3xl bg-[#131B2E] border border-white/10 shadow-2xl flex flex-col justify-between space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-extrabold text-base text-white flex items-center gap-2">
+                    <MapPin className="text-orange-400" size={18} />
+                    <span>{t('थेट वारी मार्ग व गर्दीची स्थिती (Live GIS Stream)', 'Live GIS Route & Density')}</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 font-medium">पुणे ➔ सासवड ➔ लोणंद ➔ पंढरपूर मार्ग</p>
+                </div>
+                <Link href="/crowd" className="px-3 py-1.5 bg-orange-500/10 border border-orange-500/30 text-orange-300 hover:text-white rounded-xl text-xs font-bold transition-colors">
+                  {t('पूर्ण नकाशा उघडा', 'Open Full Map')}
+                </Link>
+              </div>
 
-          <div className="hidden sm:flex items-center gap-5 text-xs">
-            <div>
-              <p className="text-slate-400 font-bold text-[9px] uppercase tracking-wider">एकूण वारकरी (Footfall)</p>
-              <p className="text-white font-extrabold text-xs">1,240,500 <span className="text-emerald-400 text-[10px]">(+8.4%)</span></p>
-            </div>
-            <div>
-              <p className="text-slate-400 font-bold text-[9px] uppercase tracking-wider">सर्वोच्च घनता (Density)</p>
-              <p className="text-amber-400 font-extrabold text-xs">
-                {queues.length > 0 ? `${queues[0].current_count} pilgrims` : '4.2 p/m²'}
-                <span className="text-slate-400 text-[9px] pl-1">({queues.length > 0 ? queues[0].gate_id : 'Alandi'})</span>
-              </p>
-            </div>
-            <div>
-              <p className="text-slate-400 font-bold text-[9px] uppercase tracking-wider">आणीबाणी (Active SOS)</p>
-              <p className="text-red-400 font-extrabold text-xs">{incidents.length > 0 ? `${incidents.length} Critical` : '0 Critical'}</p>
-            </div>
-            <div className="hidden lg:flex items-center gap-2 pl-2 border-l border-white/10 text-slate-300">
-              <CloudSun size={15} className="text-amber-400" />
-              <div>
-                <p className="text-[10px] font-bold">34°C • Sunny</p>
-                <p className="text-[9px] text-slate-400">Humidity 45%</p>
+              {/* Simulated Map Visual */}
+              <div className="h-64 rounded-2xl bg-slate-900 border border-white/10 relative overflow-hidden flex items-center justify-center">
+                <div className="absolute inset-0 opacity-30 bg-[radial-gradient(#e85d04_1px,transparent_1px)] [background-size:16px_16px]" />
+                <div className="relative z-10 text-center space-y-2 p-4">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/20 border border-emerald-500/40 rounded-full text-emerald-400 text-xs font-bold">
+                    <Radio size={14} className="animate-pulse" />
+                    <span>थेट GPS ट्रॅकिंग सुरू (Live GPS Syncing)</span>
+                  </div>
+                  <p className="text-xs text-slate-300 font-semibold max-w-sm">
+                    १,२५०+ नोंदणीकृत स्वयंसेवक आणि १५०+ रुग्णवाहिका नकाशावर थेट दृश्यमान आहेत.
+                  </p>
+                </div>
               </div>
             </div>
+
+            {/* AI Predictions & Alerts Widget */}
+            <div className="p-5 rounded-3xl bg-[#131B2E] border border-orange-500/30 shadow-2xl space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-white/10">
+                <Sparkles className="text-orange-400" size={20} />
+                <h3 className="font-extrabold text-base text-white">
+                  {t('AI भाकीत व शिफारसी', 'AI Predictions & Action Items')}
+                </h3>
+              </div>
+
+              <div className="space-y-3">
+                <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs space-y-1">
+                  <p className="font-bold text-amber-300">⚠️ गर्दीचा दाब इशारा (Crowd Surge Risk)</p>
+                  <p className="text-slate-300">पुढील ४० मिनिटांत वाखारी चौकात गर्दी १५% ने वाढण्याची शक्यता आहे.</p>
+                  <p className="text-[11px] text-orange-400 font-semibold">शिफारस: अतिरिक्त स्वयंसेवक तुकडी क्र. ४ पाठवा.</p>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/30 text-xs space-y-1">
+                  <p className="font-bold text-blue-300">💧 पाणी साठा इशारा (Water Demand)</p>
+                  <p className="text-slate-300">भंडारा डोंगर परिसरात पाणी साठा २५% खाली आला आहे.</p>
+                  <p className="text-[11px] text-blue-400 font-semibold">शिफारस: २ नवीन टँकर तत्काळ रवाना करा.</p>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
+      )}
 
-        {/* Right AI Surge Recommendation Banner */}
-        <div className="pointer-events-auto bg-[#0F1420]/90 backdrop-blur-2xl border border-amber-500/40 px-3.5 py-2 rounded-2xl text-xs flex items-center gap-3 shadow-xl">
-          <Zap className="text-amber-400 animate-bounce flex-shrink-0" size={16} />
-          <div className="hidden md:block">
-            <p className="text-amber-300 font-bold text-xs">AI Surge Alert: Dehu Bridge Bottleneck</p>
-            <p className="text-slate-300 text-[10px]">Flow rate exceeding 120/min. Recommend opening Gate 2 overflow bypass.</p>
+      {/* Persistent Emergency Hotline Banner */}
+      <div className="p-4 rounded-2xl bg-gradient-to-r from-red-950/60 via-[#131B2E] to-slate-900 border border-red-500/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-red-600/20 border border-red-500/40 flex items-center justify-center text-red-400">
+            <Phone size={20} />
           </div>
-          <button className="px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white font-extrabold rounded-xl text-[10px] transition-all shadow-md flex-shrink-0">
-            Execute Bypass
-          </button>
+          <div>
+            <p className="text-xs font-extrabold text-white">
+              {t('२४x७ शासकीय हेल्पलाइन क्र.', '24x7 Government Helpline Number')}
+            </p>
+            <p className="text-sm font-black text-red-400">१०८ (वैद्यकीय) • १०० (पोलीस) • १८००-२३३-४५५५ (वारी मदत)</p>
+          </div>
         </div>
-
+        <Link href="/sos" className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-extrabold text-xs rounded-xl transition-colors shadow-lg">
+          {t('आणीबाणी कक्ष उघडा', 'Open Emergency Hub')}
+        </Link>
       </div>
 
-      {/* RIGHT SIDE DRAWER: Live Incident Feed (Clean non-overlapping bounds) */}
-      <AnimatePresence>
-        <motion.div
-          initial={{ x: 340, opacity: 0 }}
-          animate={{ x: drawerOpen ? 0 : 320, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 280, damping: 28 }}
-          className="absolute top-20 right-4 bottom-20 z-20 w-80 sm:w-96 bg-[#0B0F19]/95 backdrop-blur-2xl border border-orange-500/30 p-4 rounded-3xl shadow-2xl flex flex-col space-y-3"
-        >
-          <div className="flex items-center justify-between pb-3 border-b border-white/10">
-            <div className="flex items-center gap-2">
-              <Radio size={15} className="text-red-500 animate-pulse" />
-              <div>
-                <p className="text-white font-extrabold text-xs">Live Operational Incident Feed</p>
-                <p className="text-slate-400 text-[10px]">प्रत्यक्ष घटना अपडेट्स</p>
-              </div>
-            </div>
-            <button 
-              onClick={() => setDrawerOpen(!drawerOpen)}
-              className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
-            >
-              <ChevronRight size={16} className={`transition-transform duration-300 ${drawerOpen ? '' : 'rotate-180'}`} />
-            </button>
-          </div>
-
-          {/* Incident Feed Items */}
-          <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 text-xs">
-            {loading && <p className="text-slate-400 text-center py-4">Loading live feed...</p>}
-            
-            {!loading && incidents.length === 0 && (
-              <p className="text-slate-400 text-center py-4">No active incidents</p>
-            )}
-
-            {incidents.map((incident: any) => (
-              <div key={incident.id} className="p-3 rounded-2xl bg-red-500/10 border border-red-500/40 text-slate-200">
-                <div className="flex justify-between items-start">
-                  <span className="font-bold text-red-400 flex items-center gap-1.5 text-xs">
-                    <ShieldAlert size={14} /> {incident.emergency_type} SOS
-                  </span>
-                  <span className="text-[9px] bg-red-500/20 px-2 py-0.5 rounded font-bold text-red-300">Live</span>
-                </div>
-                <p className="text-[11px] text-slate-300 mt-1">{incident.description || 'No description provided'}</p>
-                <p className="text-[10px] text-slate-400 mt-1">Location: {incident.latitude}, {incident.longitude}</p>
-              </div>
-            ))}
-            
-            {/* Fallback Static Items if no dynamic data */}
-            {incidents.length === 0 && !loading && (
-              <>
-                <div className="p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/40 text-slate-200">
-                  <div className="flex justify-between items-start">
-                    <span className="font-bold text-indigo-300 flex items-center gap-1.5 text-xs">
-                      <MapPin size={14} /> Traffic Diversion Active
-                    </span>
-                    <span className="text-[9px] bg-indigo-500/20 px-2 py-0.5 rounded font-bold text-indigo-300">8m ago</span>
-                  </div>
-                  <p className="text-[11px] text-slate-300 mt-1">Jejuri Slope Corridor redirected via Bypass Route B.</p>
-                </div>
-
-                <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/40 text-slate-200">
-                  <div className="flex justify-between items-start">
-                    <span className="font-bold text-emerald-400 flex items-center gap-1.5 text-xs">
-                      <Activity size={14} /> NGO Water Refill Complete
-                    </span>
-                    <span className="text-[9px] bg-emerald-500/20 px-2 py-0.5 rounded font-bold text-emerald-300">14m ago</span>
-                  </div>
-                  <p className="text-[11px] text-slate-300 mt-1">Tanker #WT-04 delivered 50,000L ORS water to Saswad Station 2.</p>
-                </div>
-              </>
-            )}
-          </div>
-        </motion.div>
-      </AnimatePresence>
-
-      {/* BOTTOM CENTER: Timeline Scrubber Panel */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
-        <div className="pointer-events-auto bg-[#0F1420]/95 backdrop-blur-2xl border border-orange-500/30 px-5 py-2 rounded-full shadow-2xl flex items-center gap-3.5 text-xs">
-          <button 
-            onClick={() => setIsPlaying(!isPlaying)}
-            className="p-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition-all shadow-md flex-shrink-0"
-          >
-            {isPlaying ? <Pause size={13} /> : <Play size={13} />}
-          </button>
-          <button className="text-slate-400 hover:text-white transition-colors flex-shrink-0">
-            <RotateCcw size={13} />
-          </button>
-          <div className="flex items-center gap-3">
-            <span className="text-slate-400 text-[10px] font-mono">08:00 AM</span>
-            <div className="w-44 sm:w-64 bg-white/10 h-1.5 rounded-full overflow-hidden relative">
-              <div className="bg-orange-500 h-full w-[65%]" />
-            </div>
-            <span className="text-orange-400 text-[10px] font-mono font-bold">14:30 PM (LIVE)</span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

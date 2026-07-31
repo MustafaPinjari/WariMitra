@@ -2,56 +2,31 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { LayoutDashboard, AlertTriangle, Users, Tent, Shield, Activity, HeartHandshake, ChevronRight, BookOpen, Search, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-const normalizeRole = (r: string) => {
-  const upper = (r || '').toUpperCase();
-  if (upper.includes('GOV') || upper.includes('SUPER') || upper === 'ADMIN') return 'GOVERNMENT_ADMIN';
-  if (upper.includes('MED')) return 'MEDICAL_STAFF';
-  if (upper.includes('POLICE')) return 'POLICE_OFFICER';
-  if (upper.includes('NGO')) return 'NGO_COORDINATOR';
-  if (upper.includes('DINDI')) return 'DINDI_LEADER';
-  if (upper.includes('VOLUNTEER')) return 'VOLUNTEER';
-  return 'PILGRIM';
-};
+import { useAccessibility } from '@/components/providers/AccessibilityProvider';
 
 export default function Sidebar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(true);
-  const [userRole, setUserRole] = useState({ name: 'Govt Admin', role: 'GOVERNMENT_ADMIN', email: 'admin@warimitra.gov.in' });
-
-  useEffect(() => {
-    const saved = localStorage.getItem('warimitra_user');
-    if (saved) {
-      try {
-        const u = JSON.parse(saved);
-        setUserRole({
-          name: u.username || 'User',
-          role: u.role || 'GOVERNMENT_ADMIN',
-          email: `${u.username || 'admin'}@warimitra.gov.in`,
-        });
-      } catch (e) {}
-    }
-  }, []);
+  const { audienceRole, t } = useAccessibility();
 
   const allNavItems = [
-    { href: '/', icon: LayoutDashboard, label: 'Overview', marathi: 'मुख्य नियंत्रण', color: '#E85D04', roles: ['GOVERNMENT_ADMIN', 'SUPER_ADMIN', 'MEDICAL_STAFF', 'POLICE_OFFICER', 'NGO_COORDINATOR', 'DINDI_LEADER', 'VOLUNTEER', 'PILGRIM'] },
-    { href: '/sos', icon: AlertTriangle, label: 'SOS Emergencies', marathi: 'आणीबाणी', color: '#EF4444', roles: ['GOVERNMENT_ADMIN', 'SUPER_ADMIN', 'MEDICAL_STAFF', 'POLICE_OFFICER', 'NGO_COORDINATOR', 'DINDI_LEADER', 'VOLUNTEER', 'PILGRIM'] },
-    { href: '/crowd', icon: Users, label: 'Crowd Intel', marathi: 'गर्दी व्यवस्थापन', color: '#3B82F6', roles: ['GOVERNMENT_ADMIN', 'SUPER_ADMIN', 'POLICE_OFFICER', 'DINDI_LEADER', 'VOLUNTEER', 'NGO_COORDINATOR', 'PILGRIM'] },
-    { href: '/medical', icon: Activity, label: 'Medical Ops', marathi: 'वैद्यकीय केंद्र', color: '#10B981', roles: ['GOVERNMENT_ADMIN', 'SUPER_ADMIN', 'MEDICAL_STAFF'] },
-    { href: '/police', icon: Shield, label: 'Police Security', marathi: 'पोलीस बंदोबस्त', color: '#6366F1', roles: ['GOVERNMENT_ADMIN', 'SUPER_ADMIN', 'POLICE_OFFICER'] },
-    { href: '/ngo', icon: HeartHandshake, label: 'NGO Relief', marathi: 'अन्न व निवारा', color: '#EC4899', roles: ['GOVERNMENT_ADMIN', 'SUPER_ADMIN', 'NGO_COORDINATOR'] },
-    { href: '/temple', icon: Tent, label: 'Temple Queues', marathi: 'दर्शन रांग', color: '#8B5CF6', roles: ['GOVERNMENT_ADMIN', 'SUPER_ADMIN', 'PILGRIM', 'VOLUNTEER', 'DINDI_LEADER'] },
-    { href: '/heritage', icon: BookOpen, label: 'Vari Heritage', marathi: 'वारी वारसा', color: '#D97706', roles: ['GOVERNMENT_ADMIN', 'SUPER_ADMIN', 'MEDICAL_STAFF', 'POLICE_OFFICER', 'NGO_COORDINATOR', 'DINDI_LEADER', 'VOLUNTEER', 'PILGRIM'] },
-    { href: '/lost-found', icon: Search, label: 'Lost & Found', marathi: 'वस्तू व व्यक्ती', color: '#06B6D4', roles: ['GOVERNMENT_ADMIN', 'SUPER_ADMIN', 'MEDICAL_STAFF', 'POLICE_OFFICER', 'NGO_COORDINATOR', 'DINDI_LEADER', 'VOLUNTEER', 'PILGRIM'] },
-    { href: '/sanitation', icon: Trash2, label: 'Sanitation', marathi: 'स्वच्छता मोहीम', color: '#14B8A6', roles: ['GOVERNMENT_ADMIN', 'SUPER_ADMIN', 'MEDICAL_STAFF', 'POLICE_OFFICER', 'NGO_COORDINATOR', 'DINDI_LEADER', 'VOLUNTEER', 'PILGRIM'] },
+    { href: '/', icon: LayoutDashboard, label: 'Overview', marathi: 'मुख्य नियंत्रण', color: '#E85D04', roles: ['GOVERNMENT', 'MEDICAL', 'POLICE', 'NGO', 'TEMPLE', 'VOLUNTEER', 'PILGRIM'] },
+    { href: '/sos', icon: AlertTriangle, label: 'SOS Emergencies', marathi: 'आणीबाणी मदतीस या', color: '#EF4444', roles: ['GOVERNMENT', 'MEDICAL', 'POLICE', 'NGO', 'TEMPLE', 'VOLUNTEER', 'PILGRIM'] },
+    { href: '/crowd', icon: Users, label: 'Crowd Intel', marathi: 'गर्दी व रस्ता नकाशा', color: '#3B82F6', roles: ['GOVERNMENT', 'POLICE', 'VOLUNTEER', 'NGO', 'PILGRIM', 'TEMPLE'] },
+    { href: '/medical', icon: Activity, label: 'Medical Ops', marathi: 'वैद्यकीय शिबीर व रुग्णवाहिका', color: '#10B981', roles: ['GOVERNMENT', 'MEDICAL', 'VOLUNTEER', 'PILGRIM'] },
+    { href: '/police', icon: Shield, label: 'Police Security', marathi: 'पोलीस व वाहतूक बंदोबस्त', color: '#6366F1', roles: ['GOVERNMENT', 'POLICE'] },
+    { href: '/ngo', icon: HeartHandshake, label: 'NGO Relief', marathi: 'अन्न, पाणी व निवारा', color: '#EC4899', roles: ['GOVERNMENT', 'NGO', 'VOLUNTEER', 'PILGRIM'] },
+    { href: '/temple', icon: Tent, label: 'Temple Queues', marathi: 'श्री विठ्ठल दर्शन रांग', color: '#8B5CF6', roles: ['GOVERNMENT', 'TEMPLE', 'VOLUNTEER', 'PILGRIM'] },
+    { href: '/lost-found', icon: Search, label: 'Lost & Found', marathi: 'हरवलेले व्यक्ती व वस्तू', color: '#06B6D4', roles: ['GOVERNMENT', 'POLICE', 'VOLUNTEER', 'PILGRIM'] },
+    { href: '/heritage', icon: BookOpen, label: 'Vari Heritage', marathi: 'पालखी सोहळा वारसा', color: '#D97706', roles: ['GOVERNMENT', 'MEDICAL', 'POLICE', 'NGO', 'TEMPLE', 'VOLUNTEER', 'PILGRIM'] },
+    { href: '/sanitation', icon: Trash2, label: 'Sanitation', marathi: 'स्वच्छता व शौचालय', color: '#14B8A6', roles: ['GOVERNMENT', 'NGO', 'VOLUNTEER', 'PILGRIM'] },
   ];
 
-  const currentNormalized = normalizeRole(userRole.role);
   const visibleNavItems = allNavItems.filter(item => 
-    item.roles.includes(currentNormalized)
+    item.roles.includes(audienceRole)
   );
 
   return (
@@ -82,7 +57,7 @@ export default function Sidebar() {
             className="w-10 h-10 rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 flex-shrink-0 flex items-center justify-center cursor-pointer shadow-lg shadow-orange-500/30"
             onClick={() => setIsOpen(!isOpen)}
           >
-            <span className="text-white font-black text-lg">W</span>
+            <span className="text-white font-black text-xl">W</span>
           </div>
 
           <AnimatePresence>
@@ -94,8 +69,8 @@ export default function Sidebar() {
                 transition={{ duration: 0.18 }}
                 className="overflow-hidden whitespace-nowrap"
               >
-                <p className="text-white font-extrabold text-base tracking-tight leading-none">वारीमित्र</p>
-                <p className="text-orange-400 text-[10px] font-bold uppercase tracking-wider mt-1">{currentNormalized.replace('_', ' ')}</p>
+                <p className="text-white font-black text-lg tracking-tight leading-none">वारीमित्र</p>
+                <p className="text-orange-400 text-[10px] font-bold uppercase tracking-wider mt-1">WariMitra Smart Portal</p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -118,10 +93,10 @@ export default function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="relative flex items-center gap-3.5 h-11 rounded-xl transition-all duration-200 group px-3 select-none flex-shrink-0"
+                className="relative flex items-center gap-3.5 h-12 rounded-xl transition-all duration-200 group px-3 select-none flex-shrink-0"
                 style={{
-                  background: isActive ? `${item.color}20` : 'transparent',
-                  border: isActive ? `1px solid ${item.color}40` : '1px solid transparent',
+                  background: isActive ? `${item.color}25` : 'transparent',
+                  border: isActive ? `1px solid ${item.color}50` : '1px solid transparent',
                 }}
               >
                 {/* Active Indicator Bar */}
@@ -137,7 +112,7 @@ export default function Sidebar() {
                 {/* Icon */}
                 <div className="flex-shrink-0 w-6 flex items-center justify-center">
                   <Icon
-                    size={19}
+                    size={20}
                     style={{ color: isActive ? item.color : undefined }}
                     className={!isActive ? 'text-slate-400 group-hover:text-white transition-colors' : ''}
                   />
@@ -155,13 +130,13 @@ export default function Sidebar() {
                     >
                       <span 
                         className={`text-xs font-bold leading-tight transition-colors ${
-                          isActive ? 'text-white' : 'text-slate-300 group-hover:text-white'
+                          isActive ? 'text-white' : 'text-slate-200 group-hover:text-white'
                         }`}
                       >
-                        {item.label}
+                        {t(item.marathi, item.label)}
                       </span>
-                      <span className="text-[9px] text-slate-400 font-medium">
-                        {item.marathi}
+                      <span className="text-[10px] text-slate-400 font-medium">
+                        {item.label}
                       </span>
                     </motion.div>
                   )}
@@ -170,8 +145,8 @@ export default function Sidebar() {
                 {/* Tooltip when sidebar is collapsed */}
                 {!isOpen && (
                   <div className="absolute left-[68px] px-3 py-1.5 bg-[#0F1420] border border-orange-500/30 text-white text-xs font-bold rounded-xl opacity-0 -translate-x-2 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200 whitespace-nowrap shadow-2xl z-50">
-                    <p>{item.label}</p>
-                    <p className="text-[10px] text-orange-400 font-normal">{item.marathi}</p>
+                    <p>{t(item.marathi, item.label)}</p>
+                    <p className="text-[10px] text-orange-400 font-normal">{item.label}</p>
                   </div>
                 )}
               </Link>
@@ -179,11 +154,11 @@ export default function Sidebar() {
           })}
         </nav>
 
-        {/* Bottom User Profile info */}
+        {/* Bottom Status Info */}
         <div className="mt-auto px-3 pt-3 border-t border-white/10 flex-shrink-0">
           <div className="flex items-center gap-3 px-1">
-            <div className="w-8 h-8 flex-shrink-0 rounded-lg bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-orange-400 font-bold text-xs">
-              {currentNormalized.charAt(0)}
+            <div className="w-8 h-8 flex-shrink-0 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-bold text-xs">
+              ●
             </div>
             <AnimatePresence>
               {isOpen && (
@@ -194,8 +169,8 @@ export default function Sidebar() {
                   transition={{ duration: 0.18 }}
                   className="overflow-hidden"
                 >
-                  <p className="text-white text-xs font-bold whitespace-nowrap">{userRole.name}</p>
-                  <p className="text-slate-400 text-[10px] whitespace-nowrap truncate max-w-[140px]">{currentNormalized}</p>
+                  <p className="text-white text-xs font-bold whitespace-nowrap">वारी मिशन ऑनलाईन</p>
+                  <p className="text-emerald-400 text-[10px] whitespace-nowrap">Live Network Active</p>
                 </motion.div>
               )}
             </AnimatePresence>

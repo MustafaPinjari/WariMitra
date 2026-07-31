@@ -1,106 +1,114 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Trash2, Plus, ChevronRight, CheckCircle2, Droplets } from 'lucide-react';
-import dynamic from 'next/dynamic';
-const GoogleMapContainer = dynamic(() => import('@/components/maps/GoogleMapContainer'), { ssr: false });
-import { sanitationService } from '@/lib/api';
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { Trash2, Plus, Droplets, CheckCircle2, MapPin, AlertTriangle } from 'lucide-react';
+import { useAccessibility } from '@/components/providers/AccessibilityProvider';
 
 export default function SanitationPage() {
-  const [drawerOpen, setDrawerOpen] = useState(true);
-  const [toilets, setToilets] = useState<any[]>([]);
+  const { audienceRole, t } = useAccessibility();
+  const isPilgrimMode = audienceRole === 'PILGRIM' || audienceRole === 'VOLUNTEER';
+
   const [statusMsg, setStatusMsg] = useState('');
 
-  useEffect(() => {
-    sanitationService.getToilets()
-      .then(res => {
-        const data = Array.isArray(res.data) ? res.data : res.data.results || [];
-        setToilets(data);
-      })
-      .catch(() => {});
-  }, []);
-
-  const handleDispatch = () => {
-    setStatusMsg('Municipal Sanitation Crew #04 Dispatched!');
+  const handleReportCleanup = () => {
+    setStatusMsg(t('स्वच्छता तक्रार नोंदवली आहे! नगरपालिका पथक रवाना होत आहे.', 'Cleanup Report Logged! Municipal crew dispatched.', 'सफाई दल भेजा जा रहा है।'));
     setTimeout(() => setStatusMsg(''), 4000);
   };
 
   return (
-    <div className="relative w-full h-[calc(100vh-4rem)] overflow-hidden bg-[#05080F]">
-      {/* INTERACTIVE MAP BACKDROP */}
-      <GoogleMapContainer activeRole="Sanitation & Waste Management Control" />
-
-      {/* TOP HEADER OVERLAY */}
-      <div className="absolute top-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-4 pointer-events-none">
-        <div className="pointer-events-auto bg-[#0F1420]/90 backdrop-blur-2xl border border-teal-500/40 px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-3.5 max-w-full">
-          <div className="p-2 bg-teal-500/20 text-teal-400 rounded-xl">
-            <Trash2 size={20} />
+    <div className="space-y-6 pb-12 max-w-7xl mx-auto">
+      
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-3xl bg-[#131B2E] border border-teal-500/40 shadow-2xl">
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-teal-500/20 border border-teal-500/40 flex items-center justify-center text-teal-400">
+            <Trash2 size={28} />
           </div>
           <div>
-            <p className="text-white font-extrabold text-xs tracking-tight flex items-center gap-2">
-              <span>स्वच्छता व शौचालय व्यवस्थापन (WASTE & SANITATION)</span>
-              <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
-            </p>
-            <p className="text-slate-400 text-[10px]">
-              {toilets.length > 0 ? toilets.length : 142} Public Toilets Tracked • Municipality Cleaning Crew Active
+            <h1 className="text-xl sm:text-2xl font-black text-white">
+              {t('स्वच्छता व शौचालय शोधा (Sanitation & Toilets)', 'Sanitation & Mobile Toilets')}
+            </h1>
+            <p className="text-xs text-slate-300 font-medium">
+              {t('जवळची मोफत स्वच्छतागृहे, पाणी उपलब्धता व स्वच्छता तक्रार', 'Find mobile toilets, check water supply, or report cleanup')}
             </p>
           </div>
         </div>
 
-        <div className="pointer-events-auto flex items-center gap-3">
+        <div className="flex items-center gap-3">
           {statusMsg && <span className="text-teal-400 font-extrabold text-xs bg-teal-500/20 px-3 py-1.5 rounded-xl border border-teal-500/40 animate-pulse">{statusMsg}</span>}
-          <button 
-            onClick={handleDispatch}
-            className="px-4 py-2.5 bg-teal-600 hover:bg-teal-500 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-teal-500/30 transition-all flex items-center gap-2 active:scale-95"
-          >
+          <button onClick={handleReportCleanup} className="px-4 py-2.5 bg-teal-600 hover:bg-teal-500 text-white font-extrabold text-xs rounded-xl shadow-lg flex items-center gap-2 transition-all">
             <Plus size={16} />
-            <span>Dispatch Cleaning Crew</span>
+            <span>{t('कचरा / स्वच्छता तक्रार करा', 'Report Cleanup')}</span>
           </button>
         </div>
       </div>
 
-      {/* RIGHT SIDE DRAWER: Public Toilets & Waste Alerts */}
-      <AnimatePresence>
-        <motion.div
-          initial={{ x: 340, opacity: 0 }}
-          animate={{ x: drawerOpen ? 0 : 320, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 280, damping: 28 }}
-          className="absolute top-20 right-4 bottom-6 z-20 w-80 sm:w-96 bg-[#0B0F19]/95 backdrop-blur-2xl border border-teal-500/30 p-4 rounded-3xl shadow-2xl flex flex-col space-y-4"
-        >
-          <div className="flex items-center justify-between pb-3 border-b border-white/10">
-            <div className="flex items-center gap-2">
-              <Droplets size={16} className="text-teal-400" />
-              <div>
-                <p className="text-white font-extrabold text-xs">Public Toilet & Cleaning Status</p>
-                <p className="text-slate-400 text-[10px]">सार्वजनिक स्वच्छतागृह व कचरा व्यवस्थापन</p>
-              </div>
-            </div>
-            <button 
-              onClick={() => setDrawerOpen(!drawerOpen)}
-              className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
-            >
-              <ChevronRight size={16} className={`transition-transform duration-300 ${drawerOpen ? '' : 'rotate-180'}`} />
-            </button>
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        
+        <div className="p-6 rounded-3xl bg-[#131B2E] border border-teal-500/30 space-y-4 shadow-xl">
+          <div className="flex justify-between items-start">
+            <span className="px-2.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-extrabold text-[10px]">
+              ९५% स्वच्छ
+            </span>
+            <Droplets className="text-teal-400" size={20} />
           </div>
 
-          <div className="p-3.5 rounded-2xl bg-teal-500/10 border border-teal-500/30 text-slate-200 space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="font-extrabold text-xs text-teal-300">Alandi Shelter Block A Toilet</span>
-              <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-extrabold text-[9px]">92% CLEAN</span>
-            </div>
-            <p className="text-[11px] text-slate-300">Unisex / Accessible • Water Supply Active</p>
+          <div>
+            <h3 className="font-black text-white text-lg">सासवड विसावा मोबाईल शौचालय (Block A)</h3>
+            <p className="text-xs text-slate-300 mt-1 flex items-center gap-1">
+              <MapPin size={14} className="text-teal-400" /> पालखी तंबू परिसर
+            </p>
           </div>
 
-          <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-slate-200 space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="font-extrabold text-xs text-amber-300">Dive Ghat Rest Stop Waste Bin</span>
-              <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 font-extrabold text-[9px]">DISPATCHED</span>
-            </div>
-            <p className="text-[11px] text-slate-300">Plastic Bottle Overflow • Municipality Crew #4 En Route</p>
+          <p className="text-xs text-slate-300">
+            ✓ महिला व पुरुषांसाठी स्वतंत्र कक्ष • सतत पाणी पुरवठा सुरू
+          </p>
+        </div>
+
+        <div className="p-6 rounded-3xl bg-[#131B2E] border border-teal-500/30 space-y-4 shadow-xl">
+          <div className="flex justify-between items-start">
+            <span className="px-2.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-extrabold text-[10px]">
+              ९०% स्वच्छ
+            </span>
+            <Droplets className="text-teal-400" size={20} />
           </div>
-        </motion.div>
-      </AnimatePresence>
+
+          <div>
+            <h3 className="font-black text-white text-lg">लोणंद बस स्थानक मोबाईल स्वच्छतागृह</h3>
+            <p className="text-xs text-slate-300 mt-1 flex items-center gap-1">
+              <MapPin size={14} className="text-teal-400" /> मुख्य रस्त्याजवळ
+            </p>
+          </div>
+
+          <p className="text-xs text-slate-300">
+            ✓ दिव्यांगांसाठी विशेष सुलभ शौचालय उपलब्ध
+          </p>
+        </div>
+
+        <div className="p-6 rounded-3xl bg-[#131B2E] border border-teal-500/30 space-y-4 shadow-xl">
+          <div className="flex justify-between items-start">
+            <span className="px-2.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-extrabold text-[10px]">
+              ९८% स्वच्छ
+            </span>
+            <Droplets className="text-teal-400" size={20} />
+          </div>
+
+          <div>
+            <h3 className="font-black text-white text-lg">पंढरपूर मंदिर परिसर स्वच्छतागृह (Block 1)</h3>
+            <p className="text-xs text-slate-300 mt-1 flex items-center gap-1">
+              <MapPin size={14} className="text-teal-400" /> द्वार क्र. १ जवळ
+            </p>
+          </div>
+
+          <p className="text-xs text-slate-300">
+            ✓ नगरपालिका पथकाद्वारे प्रति १५ मिनिटांनी स्वच्छता
+          </p>
+        </div>
+
+      </div>
+
     </div>
   );
 }

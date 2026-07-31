@@ -7,9 +7,12 @@
   --color-maratha-navy: #0F172A;
   --color-sacred-gold: #D97706;
   --color-vithoba-maroon: #7C2D12;
+  --color-emerald-safe: #10B981;
+  --color-crimson-sos: #EF4444;
   
   --background: #0B0F19;
   --surface-card: #131B2E;
+  --surface-elevated: #1A243B;
   --foreground: #F8FAFC;
   --border-muted: rgba(255, 255, 255, 0.12);
 }
@@ -28,7 +31,28 @@ body {
   overflow-x: hidden;
 }
 
-/* Custom Scrollbars for clean UI */
+/* Senior Citizen & Accessibility Font Scaling Modes */
+.accessibility-large {
+  font-size: 1.125rem;
+}
+
+.accessibility-large h1 {
+  font-size: 2.25rem !important;
+}
+
+.accessibility-large h2 {
+  font-size: 1.75rem !important;
+}
+
+.accessibility-large button, 
+.accessibility-large input, 
+.accessibility-large select {
+  padding-top: 0.85rem !important;
+  padding-bottom: 0.85rem !important;
+  font-size: 1rem !important;
+}
+
+/* Custom Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -47,7 +71,7 @@ body {
   background: rgba(232, 93, 4, 0.8);
 }
 
-/* Wari Heritage Micro-Animations & Buttons */
+/* Wari Heritage Micro-Animations */
 :root {
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
@@ -67,12 +91,12 @@ button:active, .emil-btn:active {
   transform: scale(0.97);
 }
 
-/* Glassmorphism utility with Bhagwa accent glow */
+/* Glassmorphism utility cards */
 .glass-bhagwa {
   background: rgba(19, 27, 46, 0.85);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(232, 93, 4, 0.25);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(232, 93, 4, 0.3);
+  box-shadow: 0 8px 32px 0 rgba(232, 93, 4, 0.15);
 }
 
 .glass-navy {
@@ -80,4 +104,16 @@ button:active, .emil-btn:active {
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+}
+
+.glass-emerald {
+  background: rgba(16, 185, 129, 0.08);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.glass-crimson {
+  background: rgba(239, 68, 68, 0.1);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(239, 68, 68, 0.35);
 }

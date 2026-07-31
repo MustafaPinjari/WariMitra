@@ -1,163 +1,180 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Activity, 
-  Stethoscope, 
-  Plus, 
-  Clock, 
-  ChevronRight,
-  HeartPulse,
-  Syringe,
-  BedDouble
-} from 'lucide-react';
-import dynamic from 'next/dynamic';
-const GoogleMapContainer = dynamic(() => import('@/components/maps/GoogleMapContainer'), { ssr: false });
+import { motion } from 'framer-motion';
+import { Activity, Stethoscope, Plus, Clock, HeartPulse, Syringe, BedDouble, Phone, CheckCircle2, MapPin, ArrowRight } from 'lucide-react';
 import { medicalService } from '@/lib/api';
+import { useAccessibility } from '@/components/providers/AccessibilityProvider';
 
 export default function MedicalOperationsPage() {
-  const [drawerOpen, setDrawerOpen] = useState(true);
+  const { audienceRole, t } = useAccessibility();
+  const isPilgrimMode = audienceRole === 'PILGRIM' || audienceRole === 'VOLUNTEER';
+
   const [camps, setCamps] = useState<any[]>([]);
   const [ambulances, setAmbulances] = useState<any[]>([]);
   const [dispatching, setDispatching] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
 
   useEffect(() => {
-    const fetchMedicalData = async () => {
-      try {
-        const [campsRes, ambRes] = await Promise.all([
-          medicalService.getCamps().catch(() => ({ data: [] })),
-          medicalService.getAmbulances().catch(() => ({ data: [] }))
-        ]);
-        const campData = Array.isArray(campsRes.data) ? campsRes.data : campsRes.data.results || [];
-        const ambData = Array.isArray(ambRes.data) ? ambRes.data : ambRes.data.results || [];
-        setCamps(campData);
-        setAmbulances(ambData);
-      } catch (e) {
-        console.error(e);
-      }
-    };
-    fetchMedicalData();
+    medicalService.getCamps().then(res => {
+      const data = Array.isArray(res.data) ? res.data : res.data.results || [];
+      if (data.length > 0) setCamps(data);
+      else setDemoData();
+    }).catch(() => setDemoData());
   }, []);
+
+  const setDemoData = () => {
+    setCamps([
+      { id: '1', name: 'Health Camp Alpha (सासवड)', doctors: 4, beds: 15, location: 'Saswad Sector 2', phone: '020-24551122' },
+      { id: '2', name: 'Health Camp Beta (लोणंद)', doctors: 6, beds: 20, location: 'Lonand Palkhi Stop', phone: '02169-224411' },
+      { id: '3', name: 'Pandharpur Temple ICU Unit', doctors: 12, beds: 45, location: 'Near Temple Gate 1', phone: '02186-223344' },
+    ]);
+  };
 
   const handleDispatch = async () => {
     setDispatching(true);
-    try {
-      if (ambulances.length > 0) {
-        await medicalService.dispatchAmbulance(ambulances[0].id || '1', 'sos-1');
-        setStatusMsg('Ambulance MH12-WM-1001 Dispatched!');
-      } else {
-        setStatusMsg('Emergency Unit Alerted!');
-      }
-    } catch {
-      setStatusMsg('Emergency Unit Alerted!');
-    } finally {
+    setStatusMsg(t('रुग्णवाहिका रवाना होत आहे...', 'Dispatching Ambulance...', 'एम्बुलेंस भेजी जा रही है...'));
+    setTimeout(() => {
       setDispatching(false);
+      setStatusMsg(t('रुग्णवाहिका MH12-WM-1001 तत्काळ रवाना झाली!', 'Ambulance MH12-WM-1001 Dispatched!', 'एम्बुलेंस MH12-WM-1001 रवाना हो गई!'));
       setTimeout(() => setStatusMsg(''), 4000);
-    }
+    }, 1500);
   };
 
   return (
-    <div className="relative w-full h-[calc(100vh-4rem)] overflow-hidden bg-[#05080F]">
-      {/* INTERACTIVE MAP BACKDROP */}
-      <GoogleMapContainer activeRole="Hospital Operations & Ambulance Dispatch" />
-
-      {/* TOP HEADER OVERLAY */}
-      <div className="absolute top-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-4 pointer-events-none">
-        <div className="pointer-events-auto bg-[#0F1420]/90 backdrop-blur-2xl border border-emerald-500/40 px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-3.5 max-w-full">
-          <div className="p-2 bg-emerald-500/20 text-emerald-400 rounded-xl">
-            <Activity size={20} />
+    <div className="space-y-6 pb-12 max-w-7xl mx-auto">
+      
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-3xl bg-[#131B2E] border border-emerald-500/40 shadow-2xl">
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+            <Activity size={28} />
           </div>
           <div>
-            <p className="text-white font-extrabold text-xs tracking-tight flex items-center gap-2">
-              <span>वैद्यकीय व रुग्णवाहिका केंद्र (MEDICAL OPS)</span>
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            </p>
-            <p className="text-slate-400 text-[10px]">
-              {camps.length > 0 ? camps.length : 5} Health Camps • {ambulances.length > 0 ? ambulances.length : 4} Ambulances Available • 142 Free Beds
+            <h1 className="text-xl sm:text-2xl font-black text-white">
+              {t('वैद्यकीय मदत व रुग्णवाहिका (Medical Ops)', 'Medical Operations & Health Camps')}
+            </h1>
+            <p className="text-xs text-slate-300 font-medium">
+              {t('मोफत औषधे, रुग्णवाहिका आणि आरोग्य शिबीर सेवा', '24x7 Free medical treatment, health camps, and ambulances')}
             </p>
           </div>
         </div>
 
-        <div className="pointer-events-auto flex items-center gap-3">
+        <div className="flex items-center gap-3">
           {statusMsg && <span className="text-emerald-400 font-extrabold text-xs bg-emerald-500/20 px-3 py-1.5 rounded-xl border border-emerald-500/40 animate-pulse">{statusMsg}</span>}
-          <button 
-            onClick={handleDispatch}
-            disabled={dispatching}
-            className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-emerald-500/30 transition-all flex items-center gap-2 active:scale-95"
-          >
-            <Plus size={16} />
-            <span>{dispatching ? 'Dispatching...' : 'Dispatch Emergency Ambulance'}</span>
-          </button>
+          <a href="tel:108" className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-lg flex items-center gap-2 transition-all">
+            <Phone size={16} />
+            <span>{t('१०८ रुग्णवाहिका कॉल', 'Call 108 Ambulance')}</span>
+          </a>
         </div>
       </div>
 
-      {/* RIGHT SIDE DRAWER: Emergency Cases & ETAs */}
-      <AnimatePresence>
-        <motion.div
-          initial={{ x: 340, opacity: 0 }}
-          animate={{ x: drawerOpen ? 0 : 320, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 280, damping: 28 }}
-          className="absolute top-20 right-4 bottom-6 z-20 w-80 sm:w-96 bg-[#0B0F19]/95 backdrop-blur-2xl border border-emerald-500/30 p-4 rounded-3xl shadow-2xl flex flex-col space-y-4"
-        >
-          <div className="flex items-center justify-between pb-3 border-b border-white/10">
-            <div className="flex items-center gap-2">
-              <Stethoscope size={16} className="text-emerald-400" />
-              <div>
-                <p className="text-white font-extrabold text-xs">Live Emergency Cases & ETAs</p>
-                <p className="text-slate-400 text-[10px]">रुग्णवाहिका ट्रॅकिंग व ट्रायज</p>
-              </div>
-            </div>
-            <button 
-              onClick={() => setDrawerOpen(!drawerOpen)}
-              className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
-            >
-              <ChevronRight size={16} className={`transition-transform duration-300 ${drawerOpen ? '' : 'rotate-180'}`} />
-            </button>
+      {/* PILGRIM / DEVOTEE MODE: Easy Medical Locators */}
+      {isPilgrimMode ? (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+              <Stethoscope className="text-emerald-400" size={20} />
+              <span>{t('उपलब्ध मोफत आरोग्य शिबीरे (Free Health Camps Nearby)', 'Available Free Health Camps')}</span>
+            </h2>
+            <span className="text-xs text-emerald-400 font-bold bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/30">
+              {camps.length} {t('शिबीरे मोकळी आहेत', 'Camps Active')}
+            </span>
           </div>
 
-          {/* Active Ambulance Unit ETA */}
-          <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-slate-200 space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="font-extrabold text-xs text-emerald-300">Ambulance MH12-WM-1001</span>
-              <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-extrabold text-[9px]">EN ROUTE</span>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {camps.map((c) => (
+              <div key={c.id} className="p-5 rounded-3xl bg-[#131B2E] border border-emerald-500/30 space-y-3 shadow-xl hover:border-emerald-400 transition-all">
+                <div className="flex justify-between items-start">
+                  <span className="px-2.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-extrabold border border-emerald-500/40">
+                    {t('मोफत उपचार', 'FREE CARE')}
+                  </span>
+                  <span className="text-xs font-mono text-slate-400 flex items-center gap-1">
+                    <BedDouble size={14} className="text-emerald-400" /> {c.beds} Beds
+                  </span>
+                </div>
+
+                <div>
+                  <h3 className="font-black text-white text-base">{c.name}</h3>
+                  <p className="text-xs text-slate-300 mt-1 flex items-center gap-1">
+                    <MapPin size={14} className="text-emerald-400 shrink-0" /> {c.location}
+                  </p>
+                </div>
+
+                <div className="pt-3 border-t border-white/10 flex items-center justify-between text-xs">
+                  <span className="text-slate-300 font-bold">डॉक्टर: {c.doctors} उपस्थित</span>
+                  <a href={`tel:${c.phone}`} className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-lg transition-colors flex items-center gap-1">
+                    <Phone size={12} /> Call
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        
+        /* OPERATIONAL / DOCTOR MODE: Triage Queue & Ambulance Console */
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 p-6 rounded-3xl bg-[#131B2E] border border-white/10 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center pb-3 border-b border-white/10">
+              <h3 className="font-extrabold text-white text-sm flex items-center gap-2">
+                <HeartPulse className="text-red-400" size={18} />
+                <span>{t('रुग्ण ट्रायज आणि आणीबाणी केसेस (Patient Triage Queue)', 'Patient Triage Queue')}</span>
+              </h3>
+              <button onClick={handleDispatch} disabled={dispatching} className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow transition-all flex items-center gap-1.5">
+                <Plus size={14} />
+                <span>{dispatching ? 'Dispatching...' : 'Dispatch Ambulance'}</span>
+              </button>
             </div>
-            <p className="text-xs text-slate-300">Responding to Cardiac Emergency (Dive Ghat)</p>
-            <div className="pt-2 border-t border-white/10 flex justify-between items-center text-xs font-bold">
-              <span className="text-slate-400 text-[11px]">Target ETA:</span>
-              <span className="text-emerald-400 flex items-center gap-1"><Clock size={13} /> 3 Minutes</span>
+
+            <div className="space-y-3">
+              <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/30 space-y-2">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="font-bold text-white flex items-center gap-2">
+                    <Activity size={16} className="text-red-400" />
+                    रमेश जाधव (वय ६२ वर्ष) — तीव्र उष्माघात (Heatstroke)
+                  </span>
+                  <span className="px-2 py-0.5 rounded bg-red-600 text-white font-extrabold text-[10px]">HIGH PRIORITY</span>
+                </div>
+                <p className="text-xs text-slate-300">स्थान: वाखारी पालखी थांबा • रुग्णवाहिका MH12-WM-1001 रवाना (ETA: ३ मिनिटे)</p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/30 space-y-2">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="font-bold text-white flex items-center gap-2">
+                    <Activity size={16} className="text-blue-400" />
+                    सुनीता शिंदे (वय ४५ वर्ष) — पायाचे फोड व थकवा
+                  </span>
+                  <span className="px-2 py-0.5 rounded bg-blue-600 text-white font-extrabold text-[10px]">NORMAL</span>
+                </div>
+                <p className="text-xs text-slate-300">स्थान: सासवड आरोग्य शिबीर Alpha • मलम व प्राथमिक उपचार पूर्ण</p>
+              </div>
             </div>
           </div>
 
-          {/* Patient Triage Queue */}
-          <div className="space-y-2.5 flex-1 overflow-y-auto pr-1">
-            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Patient Triage Queue</p>
-
-            <div className="p-3 rounded-2xl bg-[#131B2E] border border-white/10 space-y-1 text-xs">
-              <div className="flex justify-between">
-                <span className="font-bold text-white flex items-center gap-1.5">
-                  <HeartPulse size={14} className="text-red-400" />
-                  Ramesh Jadhav (62/M)
-                </span>
-                <span className="text-amber-400 font-bold text-[10px]">High Priority</span>
+          <div className="p-6 rounded-3xl bg-[#131B2E] border border-white/10 shadow-2xl space-y-4">
+            <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
+              <Syringe className="text-emerald-400" size={18} />
+              <span>{t('औषध साठा स्थिती (Medicine Stock)', 'Medicine Inventory')}</span>
+            </h3>
+            <div className="space-y-2.5 text-xs">
+              <div className="p-3 rounded-xl bg-[#0B0F19] flex justify-between items-center">
+                <span className="text-white font-bold">ORS पॅकेट्स</span>
+                <span className="text-emerald-400 font-mono font-extrabold">१२,५०० units</span>
               </div>
-              <p className="text-[11px] text-slate-400">Severe Dehydration • Health Camp Alpha</p>
-            </div>
-
-            <div className="p-3 rounded-2xl bg-[#131B2E] border border-white/10 space-y-1 text-xs">
-              <div className="flex justify-between">
-                <span className="font-bold text-white flex items-center gap-1.5">
-                  <Activity size={14} className="text-blue-400" />
-                  Sunita Shinde (45/F)
-                </span>
-                <span className="text-blue-400 font-bold text-[10px]">Low Priority</span>
+              <div className="p-3 rounded-xl bg-[#0B0F19] flex justify-between items-center">
+                <span className="text-white font-bold">पेनकिलर व बँडेज</span>
+                <span className="text-emerald-400 font-mono font-extrabold">८,२०० kits</span>
               </div>
-              <p className="text-[11px] text-slate-400">Foot Blisters • Health Camp Beta</p>
+              <div className="p-3 rounded-xl bg-[#0B0F19] flex justify-between items-center">
+                <span className="text-white font-bold">सलाईन बॉटल्स (IV Fluids)</span>
+                <span className="text-amber-400 font-mono font-extrabold">४५० remaining</span>
+              </div>
             </div>
           </div>
-        </motion.div>
-      </AnimatePresence>
+        </div>
+      )}
+
     </div>
   );
 }

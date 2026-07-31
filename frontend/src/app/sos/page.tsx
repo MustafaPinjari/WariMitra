@@ -2,308 +2,263 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { AlertTriangle, MapPin, Search, Clock, CheckCircle2, Activity, Shield } from 'lucide-react';
+import { AlertTriangle, MapPin, Clock, Activity, Shield, Phone, CheckCircle2, Navigation, Send, Radio, UserCheck, ShieldAlert } from 'lucide-react';
 import { sosService } from '@/lib/api';
-import { sosIncidentSocket } from '@/lib/ws_client';
-import dynamic from 'next/dynamic';
-import { useVirtualizer } from '@tanstack/react-virtual';
-
-const GoogleMapContainer = dynamic(() => import('@/components/maps/GoogleMapContainer'), { ssr: false });
+import { useAccessibility } from '@/components/providers/AccessibilityProvider';
 
 export default function SOSDashboard() {
+  const { audienceRole, t } = useAccessibility();
   const [incidents, setIncidents] = useState<any[]>([]);
-  const [latestIncident, setLatestIncident] = useState<any>(null);
   const [selectedIncident, setSelectedIncident] = useState<any>(null);
-  const [highContrast, setHighContrast] = useState(false);
-  const [isFrozen, setIsFrozen] = useState(false);
-  
-  const shouldReduceMotion = useReducedMotion();
-  const parentRef = useRef<HTMLDivElement>(null);
-  const queuedIncidents = useRef<any[]>([]);
-  const isFrozenRef = useRef(false);
+  const [sosTriggered, setSosTriggered] = useState(false);
+  const [emergencyType, setEmergencyType] = useState('Medical');
+  const [activeStep, setActiveStep] = useState(1);
 
-  const toggleFreeze = () => {
-    if (isFrozen) {
-      // Unfreeze: flush queued incidents
-      setIsFrozen(false);
-      isFrozenRef.current = false;
-      if (queuedIncidents.current.length > 0) {
-        setIncidents(prev => {
-          const newIncidents = [...queuedIncidents.current, ...prev].slice(0, 500);
-          queuedIncidents.current = [];
-          return newIncidents;
-        });
-      }
-    } else {
-      setIsFrozen(true);
-      isFrozenRef.current = true;
-    }
-  };
-
-  const virtualizer = useVirtualizer({
-    count: incidents.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 140, // Estimated pixel height of each incident card
-    overscan: 5,
-  });
-
-  const handleResolve = async (id: string) => {
-    try {
-      await sosService.updateStatus(id, 'RESOLVED');
-    } catch (_) {}
-    setIncidents(prev => prev.filter(item => item.id !== id));
-  };
+  const isPilgrimMode = audienceRole === 'PILGRIM' || audienceRole === 'VOLUNTEER';
 
   useEffect(() => {
-    // Attempt API fetch with fallback to demo SOS records
     sosService.getActiveIncidents()
       .then(res => {
         const data = Array.isArray(res.data) ? res.data : res.data.results || [];
-        if (data.length > 0) {
-          setIncidents(data);
-        } else {
-          setIncidents([
-            { id: 'SOS-1001', severity: 'CRITICAL', incident_type: 'Medical Emergency', latitude: 18.3444, longitude: 74.0305, location: 'Dive Ghat Slope Corridor', timeAgo: '2m ago', assigned: false },
-            { id: 'SOS-1002', severity: 'HIGH', incident_type: 'Heatstroke / Fainting', latitude: 18.5204, longitude: 73.8567, location: 'Pune Sector 2 Checkpoint', timeAgo: '12m ago', assigned: true },
-          ]);
-        }
+        if (data.length > 0) setIncidents(data);
+        else setDemoIncidents();
       })
-      .catch(() => {
-        setIncidents([
-          { id: 'SOS-1001', severity: 'CRITICAL', incident_type: 'Medical Emergency', latitude: 18.3444, longitude: 74.0305, location: 'Dive Ghat Slope Corridor', timeAgo: '2m ago', assigned: false },
-          { id: 'SOS-1002', severity: 'HIGH', incident_type: 'Heatstroke / Fainting', latitude: 18.5204, longitude: 73.8567, location: 'Pune Sector 2 Checkpoint', timeAgo: '12m ago', assigned: true },
-        ]);
-      });
-
-    // Connect to Django Channels WebSocket using robust client
-    sosIncidentSocket.connect();
-    
-    const unsubscribe = sosIncidentSocket.subscribe((data: any) => {
-      if (data.type === 'new_incident') {
-        setLatestIncident(data.incident);
-        if (isFrozenRef.current) {
-          queuedIncidents.current = [data.incident, ...queuedIncidents.current];
-        } else {
-          setIncidents(prev => {
-            const newIncidents = [data.incident, ...prev];
-            return newIncidents.slice(0, 500);
-          });
-        }
-      }
-    });
-
-    return () => {
-      unsubscribe();
-      sosIncidentSocket.disconnect();
-    };
+      .catch(() => setDemoIncidents());
   }, []);
 
+  const setDemoIncidents = () => {
+    setIncidents([
+      { id: 'SOS-1001', severity: 'CRITICAL', incident_type: 'Medical Emergency', latitude: 18.3444, longitude: 74.0305, location: 'Dive Ghat Slope Corridor', timeAgo: '2m ago', assigned: true, responder: 'Ramesh Patel (Volunteer #42)' },
+      { id: 'SOS-1002', severity: 'HIGH', incident_type: 'Heatstroke / Exhaustion', latitude: 18.5204, longitude: 73.8567, location: 'Saswad Sector 2 Checkpoint', timeAgo: '8m ago', assigned: false },
+      { id: 'SOS-1003', severity: 'CRITICAL', incident_type: 'Missing Elderly Person', latitude: 18.1200, longitude: 74.5500, location: 'Lonand Palkhi Rest Camp', timeAgo: '15m ago', assigned: true, responder: 'Police Control Unit 12' },
+    ]);
+  };
+
+  const handleTriggerSOS = () => {
+    setSosTriggered(true);
+    setActiveStep(1);
+    
+    // Simulate multi-step emergency assignment
+    setTimeout(() => setActiveStep(2), 2000); // GPS Captured
+    setTimeout(() => setActiveStep(3), 4000); // Responders Notified
+  };
+
   return (
-    <div className={`relative w-full h-[calc(100vh-4rem)] overflow-hidden ${highContrast ? 'bg-black' : 'bg-[#05080F]'}`}>
-      {/* Visually hidden aria-live region for screen readers */}
-      <div className="sr-only" aria-live="assertive" aria-atomic="true">
-        {latestIncident ? `New Emergency: ${latestIncident.incident_type} at ${latestIncident.location}` : ''}
-      </div>
-
-      {/* MAP BACKDROP */}
-      <GoogleMapContainer activeRole="Emergency SOS Console" />
-
-      {/* TOP HEADER OVERLAY */}
-      <div className="absolute top-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-4 pointer-events-none">
-        <div className={`pointer-events-auto px-4 py-2.5 rounded-2xl flex items-center gap-3.5 max-w-full ${
-          highContrast ? 'bg-black border-2 border-white shadow-none' : 'bg-[#0F1420]/90 backdrop-blur-2xl border border-red-500/40 shadow-2xl'
-        }`}>
-          <div className="p-2 bg-red-500/20 text-red-400 rounded-xl">
-            <AlertTriangle size={20} className="animate-pulse" />
+    <div className="space-y-6 max-w-7xl mx-auto pb-12">
+      
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-3xl bg-gradient-to-r from-red-950/80 via-[#131B2E] to-slate-900 border border-red-500/40 shadow-2xl">
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-red-600/30 border border-red-500/60 flex items-center justify-center text-red-400">
+            <AlertTriangle size={28} className="animate-pulse" />
           </div>
           <div>
-            <p className="text-white font-extrabold text-xs tracking-tight flex items-center gap-2">
-              <span>आणीबाणी SOS ऑपरेशन्स (EMERGENCY SOS)</span>
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
-            </p>
-            <p className="text-slate-400 text-[10px]">
-              {incidents.length} Active Emergencies • Live Responder Dispatch Center
+            <h1 className="text-xl sm:text-2xl font-black text-white">
+              {t('आणीबाणी मदत SOS (Emergency Response)', 'Emergency SOS Dispatch Center')}
+            </h1>
+            <p className="text-xs text-slate-300 font-medium">
+              {t('१-टॅप आणीबाणी मदत, रुग्णवाहिका व स्वयंसेवक ट्रॅकिंग', 'One-tap emergency trigger & real-time responder dispatch')}
             </p>
           </div>
         </div>
 
-        <div className="pointer-events-auto flex items-center gap-2">
-          <button 
-            onClick={() => setHighContrast(!highContrast)}
-            className="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl shadow transition-all border border-slate-600"
-            aria-label="Toggle High Contrast Mode"
-          >
-            {highContrast ? 'Disable High Contrast' : 'High Contrast'}
-          </button>
-          <button className="px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-red-500/40 transition-all flex items-center gap-2 active:scale-95">
-            <AlertTriangle size={16} />
-            <span>Broadcast Emergency Alert</span>
-          </button>
+        <div className="flex items-center gap-3">
+          <a href="tel:108" className="px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white font-extrabold text-xs rounded-xl shadow-lg flex items-center gap-2 transition-all">
+            <Phone size={16} />
+            <span>{t('१०८ रुग्णवाहिका कॉल', 'Call 108 Ambulance')}</span>
+          </a>
         </div>
       </div>
 
-      {/* RIGHT SIDE DRAWER: Live SOS Incident Feed */}
-      <div className={`absolute top-20 right-4 bottom-6 z-20 w-80 sm:w-96 p-4 rounded-3xl flex flex-col space-y-3 ${
-        highContrast ? 'bg-black border-2 border-white shadow-none' : 'bg-[#0B0F19]/95 backdrop-blur-2xl border border-red-500/30 shadow-2xl'
-      }`}>
-        <div className="flex justify-between items-center pb-3 border-b border-white/10">
-          <h3 className="font-extrabold text-white text-xs flex items-center gap-2">
-            <Activity className="text-red-500" size={16} />
-            Live SOS Incident Feed (प्रत्यक्ष आणीबाणी)
-          </h3>
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={toggleFreeze}
-              className={`px-2 py-1 text-[10px] font-bold rounded-lg border transition-colors ${
-                isFrozen 
-                  ? 'bg-orange-500 text-white border-orange-400 animate-pulse shadow-[0_0_10px_rgba(249,115,22,0.5)]' 
-                  : 'bg-transparent text-slate-300 border-slate-600 hover:bg-slate-800'
-              }`}
-            >
-              {isFrozen ? `Unfreeze (${queuedIncidents.current.length} Queued)` : 'Freeze Feed'}
-            </button>
-            <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-[10px] font-extrabold rounded-full border border-red-500/30">
-              {incidents.length} ACTIVE
-            </span>
-          </div>
-        </div>
+      {/* -------------------------------------------------------------------------- */}
+      {/* PILGRIM / DEVOTEE MODE: 1-TAP EMERGENCY SOS TRIGGER                        */}
+      {/* -------------------------------------------------------------------------- */}
+      {isPilgrimMode ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* Main Panic Button Card */}
+          <div className="lg:col-span-2 p-6 sm:p-8 rounded-3xl bg-[#131B2E] border-2 border-red-500/40 shadow-2xl flex flex-col items-center text-center space-y-6">
+            
+            <div className="space-y-2">
+              <span className="px-3 py-1 bg-red-500/20 text-red-400 border border-red-500/40 rounded-full text-xs font-extrabold">
+                {t('आणीबाणी बटण (ONE TAP SOS)', 'Emergency SOS Activation')}
+              </span>
+              <h2 className="text-2xl font-black text-white">
+                {t('तुम्हाला तातडीची मदत हवी आहे का?', 'Do you need immediate emergency help?')}
+              </h2>
+              <p className="text-xs text-slate-300 max-w-md mx-auto">
+                {t('खालील लाल बटणावर टॅप करा. तुमचे GPS स्थान जवळच्या स्वयंसेवक, डॉक्टर व पोलिसांना पाठवले जाईल.', 'Tap the button below. Your GPS location will be sent to nearby volunteers, doctors, and police.')}
+              </p>
+            </div>
 
-        <div 
-          ref={parentRef}
-          className="flex-1 overflow-y-auto space-y-2.5 pr-1"
-        >
-          <div
-            style={{
-              height: `${virtualizer.getTotalSize()}px`,
-              width: '100%',
-              position: 'relative',
-            }}
-          >
-            <AnimatePresence>
-              {virtualizer.getVirtualItems().map((virtualItem) => {
-                const inc = incidents[virtualItem.index];
-                return (
-                  <motion.div 
-                    initial={{ opacity: 0, scale: shouldReduceMotion ? 1 : 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: shouldReduceMotion ? 1 : 0.9 }}
-                    transition={{ duration: shouldReduceMotion ? 0 : 0.2 }}
-                    key={inc.id || virtualItem.index} 
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      transform: `translateY(${virtualItem.start}px)`,
-                    }}
-                    className={`p-3.5 rounded-2xl space-y-2 mb-2.5 cursor-pointer transition-all active:scale-95 ${
-                      highContrast 
-                        ? 'border-2 border-red-500 bg-black text-white hover:bg-red-900/50' 
-                        : 'border border-red-500/40 bg-red-500/10 text-slate-200 shadow-lg hover:bg-red-500/20'
-                    }`}
-                    onClick={() => setSelectedIncident(inc)}
-                  >
-                    <div className="flex justify-between items-start">
-                      <span className="px-3 py-1 bg-red-500 text-white text-[10px] font-extrabold rounded uppercase">
-                        {inc.severity || 'CRITICAL'}
-                      </span>
-                      <span className="text-[10px] text-red-300 font-bold flex items-center gap-1">
-                        <Clock size={12} /> {inc.timeAgo || 'Just now'}
-                      </span>
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-white text-sm">{inc.incident_type || 'SOS Alert'}</h4>
-                      <p className="text-xs text-slate-300 mt-1 flex items-center gap-1 truncate">
-                        <MapPin size={12} className="text-red-400 shrink-0" /> {inc.location || `GPS: ${inc.latitude}, ${inc.longitude}`}
-                      </p>
-                    </div>
-                    <div className="pt-2 mt-2 border-t border-red-500/20 text-center">
-                      <span className="text-[11px] text-red-400 font-bold w-full block py-1">
-                        Tap for Details & Dispatch
-                      </span>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </AnimatePresence>
-          </div>
-        </div>
-      </div>
-
-      {/* INCIDENT DETAILS MODAL */}
-      <AnimatePresence>
-        {selectedIncident && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-            <motion.div 
-              initial={{ opacity: 0, scale: shouldReduceMotion ? 1 : 0.9, y: shouldReduceMotion ? 0 : 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: shouldReduceMotion ? 1 : 0.9, y: shouldReduceMotion ? 0 : 20 }}
-              className={`w-full max-w-md p-6 rounded-3xl shadow-2xl flex flex-col gap-4 ${
-                highContrast ? 'bg-black border-2 border-white' : 'bg-[#0B0F19] border border-red-500/40'
-              }`}
-            >
-              <div className="flex justify-between items-center border-b border-white/10 pb-4">
-                <h2 className="text-lg font-extrabold text-white flex items-center gap-2">
-                  <AlertTriangle className="text-red-500" />
-                  Incident Details
-                </h2>
-                <button 
-                  onClick={() => setSelectedIncident(null)}
-                  className="w-11 h-11 bg-white/10 hover:bg-white/20 rounded-full text-white font-bold flex items-center justify-center transition-colors"
-                  aria-label="Close modal"
+            {/* Emergency Type Selector */}
+            <div className="w-full max-w-md grid grid-cols-3 gap-2 text-xs font-bold">
+              {['Medical', 'Lost Person', 'Women Safety'].map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setEmergencyType(type)}
+                  className={`py-2 px-3 rounded-xl border transition-all ${
+                    emergencyType === type
+                      ? 'bg-red-600 text-white border-red-400 shadow-md'
+                      : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10'
+                  }`}
                 >
-                  ✕
+                  {type === 'Medical' ? t('वैद्यकीय', 'Medical') : type === 'Lost Person' ? t('हरवले', 'Lost Person') : t('महिला सुरक्षा', 'Women Safety')}
                 </button>
-              </div>
-              
-              <div className="space-y-3 text-sm text-slate-300">
-                <p className="flex justify-between border-b border-white/5 pb-2">
-                  <strong className="text-white">ID:</strong> 
-                  <span>{selectedIncident.id}</span>
-                </p>
-                <p className="flex justify-between border-b border-white/5 pb-2">
-                  <strong className="text-white">Type:</strong> 
-                  <span className="font-bold text-red-300">{selectedIncident.incident_type || 'SOS Alert'}</span>
-                </p>
-                <p className="flex justify-between border-b border-white/5 pb-2">
-                  <strong className="text-white">Severity:</strong> 
-                  <span className="text-red-500 font-extrabold bg-red-500/20 px-2 py-0.5 rounded">{selectedIncident.severity || 'CRITICAL'}</span>
-                </p>
-                <p className="flex flex-col gap-1 border-b border-white/5 pb-2">
-                  <strong className="text-white">Location:</strong> 
-                  <span className="text-xs">{selectedIncident.location}</span>
-                </p>
-                <p className="flex justify-between border-b border-white/5 pb-2">
-                  <strong className="text-white">Coordinates:</strong> 
-                  <span className="text-xs font-mono">{selectedIncident.latitude}, {selectedIncident.longitude}</span>
-                </p>
-                <p className="flex justify-between border-b border-white/5 pb-2">
-                  <strong className="text-white">Time:</strong> 
-                  <span>{selectedIncident.timeAgo || 'Just now'}</span>
-                </p>
-                <p className="flex justify-between pb-2">
-                  <strong className="text-white">Status:</strong> 
-                  <span className={selectedIncident.assigned ? 'text-green-400' : 'text-orange-400 font-bold'}>
-                    {selectedIncident.assigned ? 'Unit Dispatched' : 'Unassigned'}
-                  </span>
-                </p>
-              </div>
+              ))}
+            </div>
 
-              <div className="mt-4 flex gap-3">
-                <button 
-                  onClick={() => setSelectedIncident(null)}
-                  className="flex-1 min-h-[44px] bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-xl transition-colors"
+            {/* Giant Panic Button */}
+            {!sosTriggered ? (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleTriggerSOS}
+                className="w-48 h-48 sm:w-56 sm:h-56 rounded-full bg-gradient-to-tr from-red-700 via-red-600 to-orange-500 text-white font-black text-3xl shadow-[0_0_60px_rgba(239,68,68,0.7)] flex flex-col items-center justify-center gap-2 border-4 border-white/20 hover:border-white/50 cursor-pointer"
+              >
+                <AlertTriangle size={56} className="animate-bounce" />
+                <span>SOS</span>
+                <span className="text-xs font-extrabold uppercase tracking-wider text-orange-200">
+                  {t('मदतीसाठी टॅप करा', 'TAP FOR HELP')}
+                </span>
+              </motion.button>
+            ) : (
+              <div className="w-full max-w-md p-6 rounded-2xl bg-red-950/60 border border-red-500/50 space-y-4 text-left">
+                <div className="flex items-center gap-3 text-red-400 font-extrabold text-base">
+                  <Radio size={24} className="animate-pulse" />
+                  <span>{t('आणीबाणी संदेश पाठवला गेला आहे!', 'SOS Alert Transmitted Successfully!')}</span>
+                </div>
+
+                <div className="space-y-3 text-xs">
+                  <div className={`p-2.5 rounded-xl flex items-center gap-2.5 ${activeStep >= 1 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-white/5 text-slate-400'}`}>
+                    <CheckCircle2 size={16} />
+                    <span>१. GPS स्थान नोंदवले: १८.३४४४ N, ७४.०३०५ E</span>
+                  </div>
+
+                  <div className={`p-2.5 rounded-xl flex items-center gap-2.5 ${activeStep >= 2 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-white/5 text-slate-400'}`}>
+                    <CheckCircle2 size={16} />
+                    <span>२. जवळचे ३ स्वयंसेवक आणि १ रुग्णवाहिका संपर्कित</span>
+                  </div>
+
+                  <div className={`p-2.5 rounded-xl flex items-center gap-2.5 ${activeStep >= 3 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-white/5 text-slate-400'}`}>
+                    <UserCheck size={16} />
+                    <span>३. स्वयंसेवक 'रमेश पाटील' घटनास्थळी रवाना (ETA: ४ मि.)</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setSosTriggered(false)}
+                  className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl transition-colors"
                 >
-                  Close
-                </button>
-                <button className="flex-1 min-h-[44px] bg-red-600 hover:bg-red-500 text-white font-extrabold rounded-xl shadow-lg transition-all active:scale-95">
-                  Dispatch Responder
+                  {t('कॉल रद्द करा', 'Cancel SOS Alert')}
                 </button>
               </div>
-            </motion.div>
+            )}
+
           </div>
-        )}
-      </AnimatePresence>
+
+          {/* Side Info & Emergency Guidelines */}
+          <div className="space-y-4">
+            <div className="p-5 rounded-3xl bg-[#131B2E] border border-white/10 shadow-xl space-y-3">
+              <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
+                <Shield className="text-orange-400" size={16} />
+                <span>{t('तातडीची संपर्क यादी (Emergency Contacts)', 'Emergency Directory')}</span>
+              </h3>
+              <div className="space-y-2 text-xs">
+                <div className="p-2.5 rounded-xl bg-white/5 flex justify-between items-center">
+                  <span className="font-bold text-white">१०८ रुग्णवाहिका सेवा</span>
+                  <span className="font-mono text-emerald-400 font-extrabold">108</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-white/5 flex justify-between items-center">
+                  <span className="font-bold text-white">१०० पोलीस नियंत्रण कक्ष</span>
+                  <span className="font-mono text-blue-400 font-extrabold">100</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-white/5 flex justify-between items-center">
+                  <span className="font-bold text-white">वारी आपत्ती मदत कक्ष</span>
+                  <span className="font-mono text-orange-400 font-extrabold">1800-233-4555</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      ) : (
+        
+        /* -------------------------------------------------------------------------- */
+        /* GOVERNMENT / OPERATIONAL MODE: INCIDENT COMMAND & DISPATCH BOARD          */
+        /* -------------------------------------------------------------------------- */
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* Incident Feed List */}
+          <div className="lg:col-span-2 p-6 rounded-3xl bg-[#131B2E] border border-red-500/30 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center pb-3 border-b border-white/10">
+              <h3 className="font-extrabold text-white text-sm flex items-center gap-2">
+                <Activity className="text-red-400" size={18} />
+                <span>{t('सक्रिय आणीबाणी घटनांची यादी (Live SOS Feed)', 'Active Emergency Feed')}</span>
+              </h3>
+              <span className="px-2.5 py-1 bg-red-500/20 text-red-400 text-xs font-extrabold rounded-full border border-red-500/30">
+                {incidents.length} INCIDENTS
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {incidents.map((inc) => (
+                <div
+                  key={inc.id}
+                  onClick={() => setSelectedIncident(inc)}
+                  className="p-4 rounded-2xl bg-red-500/10 border border-red-500/30 hover:border-red-400 cursor-pointer transition-all space-y-2"
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="px-2.5 py-0.5 bg-red-600 text-white font-extrabold text-[10px] rounded uppercase">
+                      {inc.severity}
+                    </span>
+                    <span className="text-xs text-slate-400 font-bold flex items-center gap-1">
+                      <Clock size={13} /> {inc.timeAgo}
+                    </span>
+                  </div>
+
+                  <div>
+                    <h4 className="font-black text-white text-base">{inc.incident_type}</h4>
+                    <p className="text-xs text-slate-300 flex items-center gap-1.5 mt-1">
+                      <MapPin size={14} className="text-red-400" /> {inc.location}
+                    </p>
+                  </div>
+
+                  <div className="flex justify-between items-center pt-2 border-t border-red-500/20 text-xs">
+                    <span className="text-slate-400">
+                      उत्तरदायी: <strong className="text-white">{inc.responder || 'अनियुक्त (Unassigned)'}</strong>
+                    </span>
+                    <span className="text-red-400 font-extrabold hover:underline">
+                      तपशील पहा ➔
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Quick Dispatch Panel */}
+          <div className="p-6 rounded-3xl bg-[#131B2E] border border-white/10 shadow-2xl space-y-4">
+            <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
+              <ShieldAlert className="text-orange-400" size={18} />
+              <span>{t('तातडीची कारवाई (Quick Dispatch)', 'Quick Dispatch Console')}</span>
+            </h3>
+            <p className="text-xs text-slate-300">
+              क्षेत्रीय पथकांना (Field Teams) थेट संदेश पाठवा किंवा मदत कार्य सुरू करा.
+            </p>
+            <div className="space-y-2">
+              <button className="w-full py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl shadow transition-colors">
+                नवीन रुग्णवाहिका रवाना करा
+              </button>
+              <button className="w-full py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs rounded-xl shadow transition-colors">
+                जवळचे स्वयंसेवक सतर्क करा
+              </button>
+            </div>
+          </div>
+
+        </div>
+      )}
+
     </div>
   );
 }

@@ -1,22 +1,14 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Shield, 
-  Search, 
-  Zap, 
-  ChevronRight,
-  Car,
-  AlertTriangle
-} from 'lucide-react';
-import dynamic from 'next/dynamic';
-const GoogleMapContainer = dynamic(() => import('@/components/maps/GoogleMapContainer'), { ssr: false });
+import { motion } from 'framer-motion';
+import { Shield, Search, Zap, Car, AlertTriangle, MapPin, Compass, CheckCircle2, Phone } from 'lucide-react';
 import { policeService } from '@/lib/api';
+import { useAccessibility } from '@/components/providers/AccessibilityProvider';
 
 export default function PoliceDispatchConsolePage() {
+  const { t } = useAccessibility();
   const [corridorActive, setCorridorActive] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(true);
   const [patrolCount, setPatrolCount] = useState(18);
 
   useEffect(() => {
@@ -28,114 +20,96 @@ export default function PoliceDispatchConsolePage() {
   }, []);
 
   return (
-    <div className="relative w-full h-[calc(100vh-4rem)] overflow-hidden bg-[#05080F]">
-      {/* INTERACTIVE MAP BACKDROP */}
-      <GoogleMapContainer activeRole="Police 911 CAD Dispatch Console" />
-
-      {/* TOP HEADER OVERLAY */}
-      <div className="absolute top-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-4 pointer-events-none">
-        <div className="pointer-events-auto bg-[#0F1420]/90 backdrop-blur-2xl border border-indigo-500/40 px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-3.5 max-w-full">
-          <div className="p-2 bg-indigo-500/20 text-indigo-400 rounded-xl">
-            <Shield size={20} />
+    <div className="space-y-6 pb-12 max-w-7xl mx-auto">
+      
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-3xl bg-[#131B2E] border border-indigo-500/40 shadow-2xl">
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400">
+            <Shield size={28} />
           </div>
           <div>
-            <p className="text-white font-extrabold text-xs tracking-tight flex items-center gap-2">
-              <span>महाराष्ट्र पोलीस बंदोबस्त (POLICE CAD)</span>
-              <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
-            </p>
-            <p className="text-slate-400 text-[10px]">
-              {patrolCount} Patrol Units • 4 Diversions Active • 2 Search Operations
+            <h1 className="text-xl sm:text-2xl font-black text-white">
+              {t('महाराष्ट्र पोलीस व वाहतूक बंदोबस्त (Police & Traffic)', 'Police Security & Traffic Control')}
+            </h1>
+            <p className="text-xs text-slate-300 font-medium">
+              {t('रस्ता डायव्हर्जन, गस्त पथके व हरवलेले व्यक्ती शोध', 'Live traffic diversions, patrol unit tracking & missing person search')}
             </p>
           </div>
         </div>
 
-        <div className="pointer-events-auto">
+        <div className="flex items-center gap-3">
           <button
-            onClick={async () => {
-              const nextState = !corridorActive;
-              setCorridorActive(nextState);
-              try {
-                await policeService.toggleDiversion('div-1', nextState);
-              } catch (_) {}
-            }}
-            className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all shadow-lg flex items-center gap-2 border active:scale-95 ${
+            onClick={() => setCorridorActive(!corridorActive)}
+            className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all shadow-lg flex items-center gap-2 border ${
               corridorActive 
-                ? 'bg-red-600 text-white border-red-400 animate-pulse shadow-red-500/40' 
-                : 'bg-[#0F1420] text-indigo-300 border-indigo-500/40 hover:bg-indigo-500/20'
+                ? 'bg-red-600 text-white border-red-400 animate-pulse' 
+                : 'bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-400'
             }`}
           >
-            <Zap size={15} />
-            <span>{corridorActive ? 'CLEAR EMERGENCY GREEN CORRIDOR' : 'ACTIVATE EMERGENCY GREEN CORRIDOR'}</span>
+            <Zap size={16} />
+            <span>{corridorActive ? t('रुग्णवाहिका कॉरिडॉर सक्रिय (GREEN CORRIDOR ACTIVE)', 'GREEN CORRIDOR ACTIVE') : t('इमर्जन्सी ग्रीन कॉरिडॉर सुरू करा', 'ACTIVATE GREEN CORRIDOR')}</span>
           </button>
         </div>
       </div>
 
-      {/* RIGHT SIDE DRAWER: Missing Person Search & Patrol Units */}
-      <AnimatePresence>
-        <motion.div
-          initial={{ x: 340, opacity: 0 }}
-          animate={{ x: drawerOpen ? 0 : 320, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 280, damping: 28 }}
-          className="absolute top-20 right-4 bottom-6 z-20 w-80 sm:w-96 bg-[#0B0F19]/95 backdrop-blur-2xl border border-indigo-500/30 p-4 rounded-3xl shadow-2xl flex flex-col space-y-4"
-        >
-          <div className="flex items-center justify-between pb-3 border-b border-white/10">
-            <div className="flex items-center gap-2">
-              <Search size={16} className="text-indigo-400" />
+      {/* Main Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Missing Person Search Board */}
+        <div className="lg:col-span-2 p-6 rounded-3xl bg-[#131B2E] border border-white/10 shadow-2xl space-y-4">
+          <div className="flex justify-between items-center pb-3 border-b border-white/10">
+            <h3 className="font-extrabold text-white text-sm flex items-center gap-2">
+              <Search className="text-indigo-400" size={18} />
+              <span>{t('हरवलेल्या व्यक्तींचा शोध (Missing Person Search Operation)', 'Active Missing Person Searches')}</span>
+            </h3>
+            <span className="px-2.5 py-1 bg-indigo-500/20 text-indigo-300 text-xs font-extrabold rounded-full border border-indigo-500/40">
+              2 SEARCHES ACTIVE
+            </span>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 space-y-2">
+            <div className="flex justify-between items-center text-xs">
+              <span className="font-extrabold text-indigo-300">Case #MP-2026-004</span>
+              <span className="px-2 py-0.5 rounded bg-red-600 text-white font-extrabold text-[10px]">HIGH PRIORITY</span>
+            </div>
+            <h4 className="font-black text-white text-base">अनिश जाधव (वय ८ वर्षे)</h4>
+            <p className="text-xs text-slate-300">भगवा कुर्ता घातलेला मुलगा • आळंदी पाणी केंद्र क्र. २ जवळ विभक्त झाला.</p>
+            <div className="pt-2 border-t border-indigo-500/20 flex justify-between items-center text-xs">
+              <span className="text-slate-400">शोध क्षेत्र: <strong>२.० किमी परिसर</strong></span>
+              <span className="text-emerald-400 font-extrabold">१४ पोलीस व स्वयंसेवक तैनात</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Traffic Diversions & Patrol Streams */}
+        <div className="p-6 rounded-3xl bg-[#131B2E] border border-white/10 shadow-2xl space-y-4">
+          <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
+            <Car className="text-indigo-400" size={18} />
+            <span>{t('गस्त पथके (Active Patrol Units)', 'Active Patrol Units')}</span>
+          </h3>
+
+          <div className="space-y-2 text-xs">
+            <div className="p-3 rounded-xl bg-[#0B0F19] border border-white/10 flex justify-between items-center">
               <div>
-                <p className="text-white font-extrabold text-xs">Missing Person Search Radius</p>
-                <p className="text-slate-400 text-[10px]">हरवलेले व्यक्ती शोध मोहीम</p>
+                <p className="font-bold text-white">पोलीस व्हॅन MH12-POL-4</p>
+                <p className="text-[11px] text-slate-400">सासवड रोड • गस्त सुरू</p>
               </div>
-            </div>
-            <button 
-              onClick={() => setDrawerOpen(!drawerOpen)}
-              className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
-            >
-              <ChevronRight size={16} className={`transition-transform duration-300 ${drawerOpen ? '' : 'rotate-180'}`} />
-            </button>
-          </div>
-
-          {/* Active Missing Person Search Alert */}
-          <div className="p-3.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 text-slate-200 space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="font-extrabold text-xs text-indigo-300">Case #MP-2026-004</span>
-              <span className="px-2 py-0.5 rounded bg-red-500/20 text-red-400 font-extrabold text-[9px]">HIGH PRIORITY</span>
-            </div>
-            <p className="text-xs font-bold text-white">Anish Jadhav (8 yrs)</p>
-            <p className="text-[11px] text-slate-300">Wearing Saffron Kurta. Separated near Alandi Water Point 2.</p>
-            <div className="pt-2 border-t border-white/10 flex justify-between items-center text-[10px] text-slate-300">
-              <span>Radius: 2.0 km Circle</span>
-              <span className="text-indigo-400 font-extrabold">14 Patrols Deployed</span>
-            </div>
-          </div>
-
-          {/* Patrol Units Stream */}
-          <div className="space-y-2 flex-1 overflow-y-auto pr-1">
-            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Patrol Units Stream</p>
-            
-            <div className="p-3 rounded-2xl bg-[#131B2E] border border-white/10 flex justify-between items-center text-xs">
-              <div className="flex items-center gap-2.5">
-                <Car size={16} className="text-indigo-400" />
-                <div>
-                  <p className="font-bold text-white">Unit MH12-POL-4</p>
-                  <p className="text-[10px] text-slate-400">Pune Sector 3 • 24 km/h</p>
-                </div>
-              </div>
-              <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">Patrolling</span>
+              <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold text-[10px]">ACTIVE</span>
             </div>
 
-            <div className="p-3 rounded-2xl bg-[#131B2E] border border-white/10 flex justify-between items-center text-xs">
-              <div className="flex items-center gap-2.5">
-                <AlertTriangle size={16} className="text-amber-400" />
-                <div>
-                  <p className="font-bold text-white">Unit MH12-POL-9</p>
-                  <p className="text-[10px] text-slate-400">Jejuri Slope Checkpoint</p>
-                </div>
+            <div className="p-3 rounded-xl bg-[#0B0F19] border border-white/10 flex justify-between items-center">
+              <div>
+                <p className="font-bold text-white">वाहतूक पथक MH12-POL-9</p>
+                <p className="text-[11px] text-slate-400">जेजुरी चौक • डायव्हर्जन कार्यरत</p>
               </div>
-              <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 text-[10px] font-bold">Diversion Active</span>
+              <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 font-bold text-[10px]">DIVERSION</span>
             </div>
           </div>
-        </motion.div>
-      </AnimatePresence>
+        </div>
+
+      </div>
+
     </div>
   );
 }
