@@ -46,8 +46,8 @@ Write-Host "`n[+] Backend Path:  $backendDir" -ForegroundColor DarkGray
 Write-Host "[+] Frontend Path: $frontendDir" -ForegroundColor DarkGray
 
 if ($Mode -eq "NewWindow") {
-    Write-Host "`n[+] Launching Backend (Django @ http://127.0.0.1:8000)..." -ForegroundColor Green
-    $backendCmd = "Set-Location '$backendDir'; Write-Host '=== WARIMITRA BACKEND (Django) ===' -ForegroundColor Green; & '$pythonExec' manage.py runserver"
+    Write-Host "`n[+] Launching Backend (Django @ http://0.0.0.0:8000)..." -ForegroundColor Green
+    $backendCmd = "Set-Location '$backendDir'; Write-Host '=== WARIMITRA BACKEND (Django) ===' -ForegroundColor Green; & '$pythonExec' manage.py runserver 0.0.0.0:8000"
     Start-Process powershell -ArgumentList "-NoExit", "-Command", $backendCmd
 
     Write-Host "[+] Launching Frontend (Next.js @ http://localhost:3000)..." -ForegroundColor Green
@@ -56,9 +56,9 @@ if ($Mode -eq "NewWindow") {
 
     Write-Host "`n================================================" -ForegroundColor Cyan
     Write-Host " [SUCCESS] Backend & Frontend are running!" -ForegroundColor Green
-    Write-Host "  - Frontend URL: http://localhost:3000/" -ForegroundColor BrightWhite
-    Write-Host "  - Backend API:  http://127.0.0.1:8000/api/" -ForegroundColor BrightWhite
-    Write-Host "  - Swagger Docs: http://127.0.0.1:8000/api/docs/" -ForegroundColor BrightWhite
+    Write-Host "  - Frontend URL: http://localhost:3000/" -ForegroundColor White
+    Write-Host "  - Backend API:  http://127.0.0.1:8000/api/ (Local) | http://<YOUR_PC_IP>:8000/api/ (Network/USB)" -ForegroundColor White
+    Write-Host "  - Swagger Docs: http://127.0.0.1:8000/api/docs/" -ForegroundColor White
     Write-Host "================================================" -ForegroundColor Cyan
 }
 else {
@@ -67,7 +67,7 @@ else {
     $backendJob = Start-Job -ScriptBlock {
         param($dir, $py)
         Set-Location $dir
-        & $py manage.py runserver 8000
+        & $py manage.py runserver 0.0.0.0:8000
     } -ArgumentList $backendDir, $pythonExec
 
     $frontendJob = Start-Job -ScriptBlock {

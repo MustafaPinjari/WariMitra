@@ -9,9 +9,31 @@ class PilgrimProfileSerializer(serializers.ModelSerializer):
 
 
 class FamilyGroupSerializer(serializers.ModelSerializer):
+    owner_username = serializers.SerializerMethodField(read_only=True)
+    member_count = serializers.SerializerMethodField(read_only=True)
+    members_details = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model = FamilyGroup
-        fields = '__all__'
+        fields = ['id', 'name', 'owner', 'owner_username', 'invite_code', 'member_count', 'members_details', 'created_at']
+        read_only_fields = ['id', 'owner', 'invite_code', 'created_at']
+
+    def get_owner_username(self, obj):
+        return obj.owner.get_full_name() or obj.owner.username if obj.owner else 'Unknown'
+
+    def get_member_count(self, obj):
+        return obj.members.count()
+
+    def get_members_details(self, obj):
+        return [
+            {
+                'id': m.id,
+                'username': m.username,
+                'full_name': m.get_full_name() or m.username,
+                'phone_number': getattr(m, 'phone_number', '') or '',
+            }
+            for m in obj.members.all()
+        ]
 
 
 class EmergencyContactSerializer(serializers.ModelSerializer):

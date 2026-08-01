@@ -24,14 +24,29 @@ class PilgrimProfile(TimestampModel):
     def __str__(self):
         return f"Profile for {self.user.username}"
 
+import secrets
+import string
+
+def generate_group_code():
+    return ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(6))
+
 class FamilyGroup(TimestampModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='owned_family_groups')
     members = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='family_groups')
+    invite_code = models.CharField(max_length=12, unique=True, null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if not self.invite_code:
+            code = generate_group_code()
+            while FamilyGroup.objects.filter(invite_code=code).exists():
+                code = generate_group_code()
+            self.invite_code = code
+        super().save(*args, **kwargs)
     
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.invite_code})"
 
 class EmergencyContact(TimestampModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

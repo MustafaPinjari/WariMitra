@@ -9,7 +9,11 @@ import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'providers/auth_provider.dart';
 
-void main() {
+import 'services/notification_service.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService.init();
   runApp(const ProviderScope(child: WariMitraApp()));
 }
 

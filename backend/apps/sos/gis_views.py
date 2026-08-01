@@ -12,44 +12,57 @@ class NearbyRespondersSpatialAPIView(APIView):
     Finds nearest police units, ambulances, and medical camps within a given radius_km.
     """
     def get(self, request):
+        lat_param = request.query_params.get('lat')
+        lng_param = request.query_params.get('lng')
+
+        if not lat_param or not lng_param:
+            return Response(
+                {'error': 'Missing required location parameters: lat and lng'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         try:
-            lat = float(request.query_params.get('lat', 18.3444))
-            lng = float(request.query_params.get('lng', 74.0305))
+            lat = float(lat_param)
+            lng = float(lng_param)
             radius_km = float(request.query_params.get('radius_km', 5.0))
         except (ValueError, TypeError):
             return Response({'error': 'Invalid lat, lng or radius_km parameters'}, status=status.HTTP_400_BAD_REQUEST)
 
         # 1. Nearby Ambulances
-        ambulances = Ambulance.objects.all()
+        ambulances = Ambulance.objects.exclude(current_latitude__isnull=True).exclude(current_longitude__isnull=True)
         nearby_ambulances = []
         for amb in ambulances:
-            dist = haversine_distance(lat, lng, float(amb.current_latitude or 18.3444), float(amb.current_longitude or 74.0305))
+            amb_lat = float(amb.current_latitude)
+            amb_lng = float(amb.current_longitude)
+            dist = haversine_distance(lat, lng, amb_lat, amb_lng)
             if dist <= radius_km:
                 nearby_ambulances.append({
                     'id': amb.id,
                     'vehicle_number': amb.vehicle_number,
                     'status': amb.status,
-                    'latitude': float(amb.current_latitude or 18.3444),
-                    'longitude': float(amb.current_longitude or 74.0305),
+                    'latitude': amb_lat,
+                    'longitude': amb_lng,
                     'distance_km': round(dist, 2),
-                    'eta_mins': max(1, math.round(dist * 2) if 'math' in globals() else int(dist * 2)),
+                    'eta_mins': max(1, int(dist * 2)),
                 })
 
         # Sort by distance
         nearby_ambulances.sort(key=lambda x: x['distance_km'])
 
         # 2. Nearby Police Patrol Units
-        patrols = PatrolUnit.objects.all()
+        patrols = PatrolUnit.objects.exclude(current_latitude__isnull=True).exclude(current_longitude__isnull=True)
         nearby_patrols = []
         for p in patrols:
-            dist = haversine_distance(lat, lng, float(p.current_latitude or 18.3444), float(p.current_longitude or 74.0305))
+            p_lat = float(p.current_latitude)
+            p_lng = float(p.current_longitude)
+            dist = haversine_distance(lat, lng, p_lat, p_lng)
             if dist <= radius_km:
                 nearby_patrols.append({
                     'id': p.id,
                     'badge_number': p.unit_number,
                     'status': p.status,
-                    'latitude': float(p.current_latitude or 18.3444),
-                    'longitude': float(p.current_longitude or 74.0305),
+                    'latitude': p_lat,
+                    'longitude': p_lng,
                     'distance_km': round(dist, 2),
                 })
 

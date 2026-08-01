@@ -2,6 +2,11 @@ import 'package:geolocator/geolocator.dart';
 import 'api_service.dart';
 
 class LocationService {
+  /// Rounds a double coordinate to specified decimal places (default 6).
+  static double roundCoordinate(double value, [int places = 6]) {
+    return double.parse(value.toStringAsFixed(places));
+  }
+
   /// Requests permission and returns current position.
   /// Returns null if permission denied.
   static Future<Position?> getCurrentPosition() async {
@@ -33,8 +38,8 @@ class LocationService {
     if (pos == null) return;
     try {
       await ApiService.dio.post('/pilgrims/update-location/', data: {
-        'latitude': pos.latitude,
-        'longitude': pos.longitude,
+        'latitude': roundCoordinate(pos.latitude),
+        'longitude': roundCoordinate(pos.longitude),
         if (batteryLevel != null) 'battery_level': batteryLevel,
       });
     } catch (_) {

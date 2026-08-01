@@ -31,14 +31,16 @@ class LiveTelemetryState {
 class TelemetryNotifier extends StateNotifier<LiveTelemetryState> {
   TelemetryNotifier()
       : super(const LiveTelemetryState(
-          latitude: 18.3444,
-          longitude: 74.0305,
+          latitude: 0.0,
+          longitude: 0.0,
           activeEmergencyStatus: 'Normal',
           isSosTriggered: false,
         ));
 
   void updateGPS(double lat, double lng) {
-    state = state.copyWith(latitude: lat, longitude: lng);
+    final roundedLat = double.parse(lat.toStringAsFixed(6));
+    final roundedLng = double.parse(lng.toStringAsFixed(6));
+    state = state.copyWith(latitude: roundedLat, longitude: roundedLng);
   }
 
   void triggerSos() {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/spring_button.dart';
 import '../services/api_service.dart';
+import '../services/location_service.dart';
 
 class CommunityIntelligenceScreen extends StatefulWidget {
   const CommunityIntelligenceScreen({Key? key}) : super(key: key);
@@ -63,11 +64,27 @@ class _CommunityIntelligenceScreenState extends State<CommunityIntelligenceScree
     if (_titleController.text.trim().isEmpty) return;
     setState(() => _isPosting = true);
     try {
+      final pos = await LocationService.getCurrentPosition();
+      if (pos == null) {
+        setState(() => _isPosting = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('⚠️ GPS location required to submit report.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+      final lat = LocationService.roundCoordinate(pos.latitude);
+      final lng = LocationService.roundCoordinate(pos.longitude);
+
       await ApiService.dio.post('/community/reports/', data: {
         'category': _newCategory,
         'description': _titleController.text.trim(),
-        'latitude': 18.3444,
-        'longitude': 74.0305,
+        'latitude': lat,
+        'longitude': lng,
       });
       _titleController.clear();
       Navigator.pop(context); // Close bottom sheet

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/api_service.dart';
+import '../services/location_service.dart';
 
 class ServicesScreen extends StatefulWidget {
   const ServicesScreen({Key? key}) : super(key: key);
@@ -44,11 +45,27 @@ class _ServicesScreenState extends State<ServicesScreen> {
     }
     setState(() => _isSubmitting = true);
     try {
+      final pos = await LocationService.getCurrentPosition();
+      if (pos == null) {
+        setState(() => _isSubmitting = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('⚠️ Location required to post service report. Please turn on GPS.'),
+              backgroundColor: AppTheme.sosRed,
+            ),
+          );
+        }
+        return;
+      }
+      final lat = LocationService.roundCoordinate(pos.latitude);
+      final lng = LocationService.roundCoordinate(pos.longitude);
+
       await ApiService.dio.post('/community/reports/', data: {
         'category': _selectedCategory,
         'description': _descController.text.trim(),
-        'latitude': 18.3444,
-        'longitude': 74.0305,
+        'latitude': lat,
+        'longitude': lng,
       });
       _descController.clear();
       if (mounted) {

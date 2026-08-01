@@ -51,9 +51,9 @@ class _SOSScreenState extends State<SOSScreen> with SingleTickerProviderStateMix
     if (mounted) {
       setState(() {
         if (pos != null) {
-          _lat = pos.latitude;
-          _lng = pos.longitude;
-          _gpsInfo = '${pos.latitude.toStringAsFixed(4)}° N, ${pos.longitude.toStringAsFixed(4)}° E';
+          _lat = LocationService.roundCoordinate(pos.latitude);
+          _lng = LocationService.roundCoordinate(pos.longitude);
+          _gpsInfo = '${_lat!.toStringAsFixed(4)}° N, ${_lng!.toStringAsFixed(4)}° E';
         } else {
           _gpsInfo = 'Location unavailable';
         }
@@ -82,13 +82,38 @@ class _SOSScreenState extends State<SOSScreen> with SingleTickerProviderStateMix
       _cancelCountdown = 5;
     });
 
+    // Ensure real GPS coordinates are acquired
+    if (_lat == null || _lng == null) {
+      final pos = await LocationService.getCurrentPosition();
+      if (pos != null) {
+        _lat = LocationService.roundCoordinate(pos.latitude);
+        _lng = LocationService.roundCoordinate(pos.longitude);
+      }
+    }
+
+    if (_lat == null || _lng == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('⚠️ GPS location required for SOS dispatch. Please turn on location.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      setState(() {
+        _isActivated = false;
+        _isSending = false;
+      });
+      return;
+    }
+
     // Call backend SOS API
     try {
       final response = await ApiService.dio.post('/sos/', data: {
         'emergency_type': 'Medical',
         'priority': 'Critical',
-        'latitude': _lat ?? 18.3444,
-        'longitude': _lng ?? 74.0305,
+        'latitude': _lat,
+        'longitude': _lng,
         'description': 'SOS triggered from WariMitra app',
       });
       _activeIncidentId = response.data['id']?.toString();

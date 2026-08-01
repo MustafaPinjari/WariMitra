@@ -7,11 +7,10 @@ import 'package:fluttertoast/fluttertoast.dart';
 /// Central API service. All screens use this for HTTP calls.
 /// Base URL uses 10.0.2.2 for Android emulator (maps to localhost).
 class ApiService {
-  // Uses host PC LAN IP (10.220.49.3) for physical Android devices, 127.0.0.1 for desktop/web
+  // For physical Android devices connected via USB, run: `adb reverse tcp:8000 tcp:8000`
+  // This forwards http://127.0.0.1:8000 from the device to your PC's backend.
+  // If connecting via LAN/Wi-Fi without ADB reverse, replace 127.0.0.1 with your PC's local IP (e.g. 192.168.x.x).
   static String get _baseUrl {
-    if (Platform.isAndroid) {
-      return 'http://10.220.49.3:8000/api/v1';
-    }
     return 'http://127.0.0.1:8000/api/v1';
   }
   static const _storage = FlutterSecureStorage();

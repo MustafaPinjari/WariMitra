@@ -1,6 +1,12 @@
+import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 import '../services/api_service.dart';
 import '../services/location_service.dart';
+import '../services/notification_service.dart';
 
 class FamilyLocatorScreen extends StatefulWidget {
   const FamilyLocatorScreen({Key? key}) : super(key: key);
@@ -14,11 +20,31 @@ class _FamilyLocatorScreenState extends State<FamilyLocatorScreen> {
   List<dynamic> _groups = [];
   bool _isLoading = true;
   bool _isUpdatingLocation = false;
+  bool _isAutoSharing = false;
+  Timer? _autoShareTimer;
+
+  Position? _currentPosition;
+  GoogleMapController? _mapController;
+  final Set<Marker> _markers = {};
 
   @override
   void initState() {
     super.initState();
     _loadData();
+    _fetchUserLocation();
+  }
+
+  @override
+  void dispose() {
+    _autoShareTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _fetchUserLocation() async {
+    final pos = await LocationService.getCurrentPosition();
+    if (mounted && pos != null) {
+      setState(() => _currentPosition = pos);
+    }
   }
 
   Future<void> _loadData() async {
@@ -30,26 +56,295 @@ class _FamilyLocatorScreenState extends State<FamilyLocatorScreen> {
       ]);
       final groupData = futures[0].data;
       final locationData = futures[1].data;
+
+      final groupsList = groupData is List ? groupData : (groupData['results'] ?? []);
+      final membersList = locationData is List ? locationData : (locationData['results'] ?? []);
+
       setState(() {
-        _groups = groupData is List ? groupData : (groupData['results'] ?? []);
-        _members = locationData is List ? locationData : (locationData['results'] ?? []);
+        _groups = groupsList;
+        _members = membersList;
         _isLoading = false;
       });
-    } catch (_) {
-      setState(() => _isLoading = false);
+
+      _updateMapMarkers();
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _shareMyLocation() async {
-    setState(() => _isUpdatingLocation = true);
+  void _updateMapMarkers() {
+    final Set<Marker> newMarkers = {};
+    for (int i = 0; i < _members.length; i++) {
+      final member = _members[i];
+      final double? lat = double.tryParse(member['latitude']?.toString() ?? '');
+      final double? lng = double.tryParse(member['longitude']?.toString() ?? '');
+      final String name = member['full_name']?.toString() ?? member['username'] ?? 'Family Member';
+      final battery = member['battery_level'];
+
+      if (lat != null && lng != null) {
+        newMarkers.add(
+          Marker(
+            markerId: MarkerId('member_$i'),
+            position: LatLng(lat, lng),
+            infoWindow: InfoWindow(
+              title: name,
+              snippet: 'Battery: ${battery != null ? '$battery%' : 'N/A'} • ${_getRelativeTime(member['updated_at'])}',
+            ),
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              i == 0 ? BitmapDescriptor.hueAzure : BitmapDescriptor.hueOrange,
+            ),
+          ),
+        );
+      }
+    }
+
+    setState(() => _markers.clear());
+    setState(() => _markers.addAll(newMarkers));
+  }
+
+  void _toggleAutoSharing(bool value) {
+    setState(() => _isAutoSharing = value);
+    _autoShareTimer?.cancel();
+
+    if (value) {
+      _shareMyLocation(silent: true);
+      NotificationService.showLocationSharingNotification();
+      _autoShareTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+        _shareMyLocation(silent: true);
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('⚡ Live location sharing enabled (Updates every 30s)'),
+            backgroundColor: Color(0xFF10B981),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } else {
+      NotificationService.cancelLocationSharingNotification();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('⏸ Live location sharing paused'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _shareMyLocation({bool silent = false}) async {
+    if (!silent) setState(() => _isUpdatingLocation = true);
     await LocationService.updateBackendLocation();
-    setState(() => _isUpdatingLocation = false);
-    if (mounted) {
+    await _fetchUserLocation();
+    if (!silent) setState(() => _isUpdatingLocation = false);
+
+    if (!silent && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('📍 Your location shared with family group!'), backgroundColor: Color(0xFF10B981)),
+        const SnackBar(
+          content: Text('📍 Your location updated and shared with family!'),
+          backgroundColor: Color(0xFF10B981),
+        ),
       );
     }
-    _loadData(); // Refresh to show updated location
+    _loadData();
+  }
+
+  void _showCreateGroupDialog() {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1D24),
+        title: const Text('Create Family Group', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Create a family or dindi group to track each other live during Wari.', style: TextStyle(color: Colors.grey, fontSize: 12)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Group Name (e.g. Pawar Family Wari)',
+                labelStyle: const TextStyle(color: Colors.grey),
+                filled: true,
+                fillColor: Colors.white.withValues(alpha: 0.05),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
+            onPressed: () async {
+              final name = controller.text.trim();
+              if (name.isEmpty) return;
+              Navigator.pop(ctx);
+              try {
+                final response = await ApiService.dio.post('/pilgrims/families/', data: {'name': name});
+                final code = response.data['invite_code'];
+                if (mounted) {
+                  _showInviteCodeDialog(name, code ?? 'CREATED');
+                  _loadData();
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: ${ApiService.errorMessage(e)}'), backgroundColor: Colors.red),
+                  );
+                }
+              }
+            },
+            child: const Text('Create Group'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showJoinGroupDialog() {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1D24),
+        title: const Text('Join Family Group', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Enter the 6-character Invite Code shared by your family group admin.', style: TextStyle(color: Colors.grey, fontSize: 12)),
+            const SizedBox(height: 14),
+            TextField(
+              controller: controller,
+              textCapitalization: TextCapitalization.characters,
+              maxLength: 6,
+              style: const TextStyle(color: Colors.white, fontSize: 18, letterSpacing: 3, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+              decoration: InputDecoration(
+                hintText: 'CODE12',
+                hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
+                filled: true,
+                fillColor: Colors.white.withValues(alpha: 0.05),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700),
+            onPressed: () async {
+              final code = controller.text.trim().toUpperCase();
+              if (code.isEmpty) return;
+              Navigator.pop(ctx);
+              try {
+                final response = await ApiService.dio.post('/pilgrims/families/join/', data: {'invite_code': code});
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('🎉 ${response.data['message']}'), backgroundColor: const Color(0xFF10B981)),
+                  );
+                  _loadData();
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('⚠️ ${ApiService.errorMessage(e)}'), backgroundColor: Colors.red),
+                  );
+                }
+              }
+            },
+            child: const Text('Join Group'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showInviteCodeDialog(String groupName, String code) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1D24),
+        title: Text('🎉 $groupName Created!', style: const TextStyle(color: Colors.white)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Share this 6-character code with your family members so they can join:', style: TextStyle(color: Colors.grey, fontSize: 13)),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.blueAccent.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.blueAccent),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(code, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 4)),
+                  const SizedBox(width: 12),
+                  IconButton(
+                    icon: const Icon(Icons.copy_rounded, color: Colors.blueAccent),
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: code));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Invite code copied to clipboard!')),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Done'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getRelativeTime(String? dateTimeStr) {
+    if (dateTimeStr == null) return 'Unknown';
+    final dt = DateTime.tryParse(dateTimeStr)?.toLocal();
+    if (dt == null) return 'Unknown';
+    final diff = DateTime.now().difference(dt);
+    if (diff.inSeconds < 45) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
+  }
+
+  String _getDistanceString(double? targetLat, double? targetLng) {
+    if (_currentPosition == null || targetLat == null || targetLng == null) {
+      return 'Location synced';
+    }
+    const p = 0.017453292519943295;
+    final lat1 = _currentPosition!.latitude;
+    final lng1 = _currentPosition!.longitude;
+    final a = 0.5 - cos((targetLat - lat1) * p) / 2 +
+        cos(lat1 * p) * cos(targetLat * p) * (1 - cos((targetLng - lng1) * p)) / 2;
+    final km = 12742 * asin(sqrt(a));
+    if (km < 1) {
+      return '${(km * 1000).round()} meters away';
+    }
+    return '${km.toStringAsFixed(1)} km away';
   }
 
   @override
@@ -60,183 +355,373 @@ class _FamilyLocatorScreenState extends State<FamilyLocatorScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Top App Bar
             Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                      const SizedBox(width: 8),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Family & Dindi Locator', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
-                            Text('Consent-Based GPS Sharing', style: TextStyle(fontSize: 12, color: Colors.blueAccent)),
-                          ],
-                        ),
-                      ),
-                      IconButton(icon: const Icon(Icons.refresh_rounded, color: Colors.blueAccent), onPressed: _loadData),
-                    ],
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
                   ),
-                  const SizedBox(height: 16),
-
-                  // Share location button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _isUpdatingLocation ? null : _shareMyLocation,
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade700),
-                      icon: _isUpdatingLocation
-                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : const Icon(Icons.my_location_rounded),
-                      label: const Text('Share My Location Now'),
+                  const SizedBox(width: 6),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Family & Dindi Locator', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                        Text('Consent-Based Live GPS Sharing', style: TextStyle(fontSize: 12, color: Colors.blueAccent)),
+                      ],
                     ),
                   ),
-
-                  // Family groups
-                  if (_groups.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    ..._groups.map((group) => Container(
-                      padding: const EdgeInsets.all(14),
-                      margin: const EdgeInsets.only(bottom: 8),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(colors: [Colors.blue.withValues(alpha: 0.15), Colors.purple.withValues(alpha: 0.1)]),
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
-                      ),
-                      child: Row(
-                        children: [
-                          const CircleAvatar(backgroundColor: Colors.blue, child: Icon(Icons.groups_rounded, color: Colors.white)),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(group['name']?.toString() ?? 'Family Group', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                                Text('Group members • Tracking Active', style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    )),
-                  ] else ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.info_outline_rounded, color: Colors.blueAccent),
-                          SizedBox(width: 10),
-                          Expanded(
-                            child: Text('No family groups found. Create one to track members.',
-                              style: TextStyle(color: Colors.white70, fontSize: 12)),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                  IconButton(
+                    icon: const Icon(Icons.refresh_rounded, color: Colors.blueAccent),
+                    onPressed: _loadData,
+                  ),
                 ],
               ),
             ),
 
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: Text('Member Locations', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+            // Live Auto-Share Toggle & Action Bar
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.04),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.share_location_rounded, color: Colors.blueAccent, size: 22),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Auto-Share Location', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                        Text('Auto updates every 30s', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                      ],
+                    ),
+                  ),
+                  Switch(
+                    value: _isAutoSharing,
+                    activeColor: const Color(0xFF10B981),
+                    onChanged: _toggleAutoSharing,
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 12),
 
+            // Map View Header (If markers present)
+            if (_members.isNotEmpty) ...[
+              Container(
+                height: 180,
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.3)),
+                ),
+                child: GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target: LatLng(
+                      double.tryParse(_members[0]['latitude']?.toString() ?? '18.3444') ?? 18.3444,
+                      double.tryParse(_members[0]['longitude']?.toString() ?? '74.0305') ?? 74.0305,
+                    ),
+                    zoom: 13,
+                  ),
+                  markers: _markers,
+                  myLocationEnabled: true,
+                  zoomControlsEnabled: false,
+                  mapToolbarEnabled: false,
+                  onMapCreated: (controller) => _mapController = controller,
+                ),
+              ),
+            ],
+
+            // Family Groups Section Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('My Family Groups', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                  Row(
+                    children: [
+                      TextButton.icon(
+                        style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                        onPressed: _showJoinGroupDialog,
+                        icon: const Icon(Icons.login_rounded, size: 16, color: Colors.greenAccent),
+                        label: const Text('Join Group', style: TextStyle(color: Colors.greenAccent, fontSize: 12)),
+                      ),
+                      const SizedBox(width: 8),
+                      TextButton.icon(
+                        style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                        onPressed: _showCreateGroupDialog,
+                        icon: const Icon(Icons.add_circle_outline_rounded, size: 16, color: Colors.blueAccent),
+                        label: const Text('+ Create', style: TextStyle(color: Colors.blueAccent, fontSize: 12)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            // Family Groups Cards List
+            if (_groups.isNotEmpty) ...[
+              SizedBox(
+                height: 80,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _groups.length,
+                  itemBuilder: (context, index) {
+                    final group = _groups[index];
+                    final String name = group['name']?.toString() ?? 'Family Group';
+                    final String code = group['invite_code']?.toString() ?? 'N/A';
+                    final int count = group['member_count'] ?? 1;
+
+                    return Container(
+                      width: 220,
+                      margin: const EdgeInsets.only(right: 10),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.blue.withValues(alpha: 0.15), Colors.purple.withValues(alpha: 0.1)],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.3)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const CircleAvatar(
+                                radius: 12,
+                                backgroundColor: Colors.blueAccent,
+                                child: Icon(Icons.groups_rounded, size: 14, color: Colors.white),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(name, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                              ),
+                            ],
+                          ),
+                          const Spacer(),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('$count Member${count > 1 ? 's' : ''}', style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                              InkWell(
+                                onTap: () {
+                                  Clipboard.setData(ClipboardData(text: code));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Code $code copied!')),
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Text(code, style: const TextStyle(color: Colors.blueAccent, fontSize: 11, fontWeight: FontWeight.bold)),
+                                      const SizedBox(width: 4),
+                                      const Icon(Icons.copy_rounded, size: 10, color: Colors.blueAccent),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ] else ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline_rounded, color: Colors.blueAccent, size: 20),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Text('No family group found. Create one or join with invite code.',
+                            style: TextStyle(color: Colors.white70, fontSize: 11)),
+                      ),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4)),
+                        onPressed: _showCreateGroupDialog,
+                        child: const Text('Create', style: TextStyle(fontSize: 11)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Member Live Status', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                  TextButton.icon(
+                    onPressed: _isUpdatingLocation ? null : () => _shareMyLocation(),
+                    icon: _isUpdatingLocation
+                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.my_location_rounded, size: 14, color: Colors.blueAccent),
+                    label: const Text('Share My GPS Now', style: TextStyle(color: Colors.blueAccent, fontSize: 12)),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+
+            // Members Location List
             Expanded(
               child: _isLoading
-                  ? const Center(child: CircularProgressIndicator(color: Colors.blue))
+                  ? const Center(child: CircularProgressIndicator(color: Colors.blueAccent))
                   : _members.isEmpty
                       ? Padding(
-                          padding: const EdgeInsets.all(20),
+                          padding: const EdgeInsets.all(16),
                           child: Container(
-                            padding: const EdgeInsets.all(20),
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(24),
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.04),
                               borderRadius: BorderRadius.circular(16),
                             ),
-                            child: const Column(
+                            child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.location_off_rounded, color: Colors.grey, size: 40),
-                                SizedBox(height: 8),
-                                Text('No family members have shared their location yet.',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(color: Colors.grey, fontSize: 13)),
+                                const Icon(Icons.location_off_rounded, color: Colors.grey, size: 36),
+                                const SizedBox(height: 8),
+                                const Text('No family members have shared location yet.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(color: Colors.grey, fontSize: 13)),
+                                const SizedBox(height: 12),
+                                ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
+                                  onPressed: () => _shareMyLocation(),
+                                  icon: const Icon(Icons.my_location_rounded, size: 16),
+                                  label: const Text('Share My Location First'),
+                                ),
                               ],
                             ),
                           ),
                         )
                       : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
                           itemCount: _members.length,
                           itemBuilder: (context, index) {
                             final member = _members[index];
-                            final battery = member['battery_level'];
-                            final lat = member['latitude']?.toString() ?? '?';
-                            final lng = member['longitude']?.toString() ?? '?';
-                            return _buildMemberTile(
-                              member['full_name']?.toString() ?? member['username'] ?? 'Unknown',
-                              'GPS: $lat, $lng',
-                              battery != null ? '$battery%' : 'N/A',
-                              const Color(0xFF10B981),
+                            final int? battery = member['battery_level'];
+                            final double? lat = double.tryParse(member['latitude']?.toString() ?? '');
+                            final double? lng = double.tryParse(member['longitude']?.toString() ?? '');
+                            final String name = member['full_name']?.toString() ?? member['username'] ?? 'Unknown Member';
+                            final String relativeTime = _getRelativeTime(member['updated_at']);
+                            final String distance = _getDistanceString(lat, lng);
+
+                            Color batteryColor = Colors.greenAccent;
+                            if (battery != null) {
+                              if (battery < 20) {
+                                batteryColor = Colors.redAccent;
+                              } else if (battery < 50) {
+                                batteryColor = Colors.orangeAccent;
+                              }
+                            }
+
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 10),
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.05),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                              ),
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    backgroundColor: Colors.blueAccent.withValues(alpha: 0.2),
+                                    child: Text(
+                                      name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                                      style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                                        const SizedBox(height: 2),
+                                        Row(
+                                          children: [
+                                            const Icon(Icons.near_me_rounded, size: 12, color: Colors.blueAccent),
+                                            const SizedBox(width: 4),
+                                            Text(distance, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                                            const SizedBox(width: 8),
+                                            Text('•  $relativeTime', style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            battery != null && battery < 20 ? Icons.battery_alert_rounded : Icons.battery_std_rounded,
+                                            size: 16,
+                                            color: batteryColor,
+                                          ),
+                                          const SizedBox(width: 2),
+                                          Text(
+                                            battery != null ? '$battery%' : 'N/A',
+                                            style: TextStyle(color: batteryColor, fontSize: 12, fontWeight: FontWeight.bold),
+                                          ),
+                                        ],
+                                      ),
+                                      if (lat != null && lng != null) ...[
+                                        const SizedBox(height: 4),
+                                        InkWell(
+                                          onTap: () {
+                                            if (_mapController != null) {
+                                              _mapController!.animateCamera(
+                                                CameraUpdate.newLatLngZoom(LatLng(lat, lng), 15),
+                                              );
+                                            }
+                                          },
+                                          child: const Text('View on Map', style: TextStyle(color: Colors.blueAccent, fontSize: 11, fontWeight: FontWeight.bold)),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ],
+                              ),
                             );
                           },
                         ),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildMemberTile(String name, String location, String battery, Color statusColor) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            backgroundColor: statusColor.withValues(alpha: 0.2),
-            child: Icon(Icons.person_rounded, color: statusColor),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                const SizedBox(height: 2),
-                Text(location, style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 11)),
-              ],
-            ),
-          ),
-          Row(
-            children: [
-              Icon(Icons.battery_std_rounded, size: 16, color: Colors.white.withValues(alpha: 0.5)),
-              Text(battery, style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12, fontWeight: FontWeight.bold)),
-            ],
-          ),
-        ],
       ),
     );
   }
