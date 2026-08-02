@@ -41,7 +41,15 @@ if (-not (Test-Path $pythonExec)) {
     $pythonExec = "python"
 }
 
-# 3. Launch Services
+# 3. Check for ADB & set up port forwarding for physical Android devices
+if (Get-Command adb -ErrorAction SilentlyContinue) {
+    $adbResult = & adb reverse tcp:8000 tcp:8000 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "[+] ADB Reverse Port Forwarding enabled (http://127.0.0.1:8000 on physical device -> PC)" -ForegroundColor Cyan
+    }
+}
+
+# 4. Launch Services
 Write-Host "`n[+] Backend Path:  $backendDir" -ForegroundColor DarkGray
 Write-Host "[+] Frontend Path: $frontendDir" -ForegroundColor DarkGray
 

@@ -99,18 +99,29 @@ class ApiService {
         return 'Connection timeout. Check internet connection.';
       }
       if (e.type == DioExceptionType.connectionError) {
-        return 'Cannot reach server. Check your network.';
+        return 'Cannot connect to backend server. Ensure backend is running.';
       }
       final data = e.response?.data;
       if (data is Map) {
-        // Extract first error message from DRF response
-        for (final val in data.values) {
-          if (val is List && val.isNotEmpty) return val.first.toString();
-          if (val is String) return val;
+        if (data['detail'] != null && data['detail'].toString().isNotEmpty) {
+          return data['detail'].toString();
         }
-        return data['detail']?.toString() ?? 'Server error ${e.response?.statusCode}';
+        if (data['message'] != null && data['message'].toString().isNotEmpty) {
+          return data['message'].toString();
+        }
+        // Extract first field error message from DRF response
+        for (final entry in data.entries) {
+          if (entry.key == 'detail' || entry.key == 'message') continue;
+          final val = entry.value;
+          if (val is List && val.isNotEmpty) {
+            return "${entry.key}: ${val.first}";
+          }
+          if (val is String) {
+            return "${entry.key}: $val";
+          }
+        }
       }
-      return 'Error ${e.response?.statusCode ?? 'unknown'}';
+      return 'Server error ${e.response?.statusCode ?? 'unknown'}';
     }
     return e.toString();
   }

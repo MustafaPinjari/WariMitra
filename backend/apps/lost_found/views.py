@@ -9,6 +9,10 @@ class LostFoundItemViewSet(viewsets.ModelViewSet):
     serializer_class = LostFoundItemSerializer
 
     def get_permissions(self):
-        if self.action in ['list', 'retrieve', 'create']:
-            return [AllowAny()]
-        return [IsAuthenticated()]
+        return [AllowAny()]
+
+    def perform_create(self, serializer):
+        import secrets, string
+        code = 'WM-LF-' + ''.join(secrets.choice(string.digits) for _ in range(5))
+        serializer.save(qr_claim_code=code)
+

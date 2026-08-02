@@ -64,6 +64,23 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  Future<bool> register(Map<String, dynamic> data) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final user = await AuthService.register(data);
+      state = state.copyWith(
+        isLoggedIn: true,
+        isLoading: false,
+        role: user['role']?.toString() ?? data['role']?.toString() ?? 'PILGRIM',
+        username: user['username']?.toString() ?? data['username']?.toString() ?? '',
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      return false;
+    }
+  }
+
   Future<void> logout() async {
     await AuthService.logout();
     state = const AuthState();

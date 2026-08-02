@@ -8,16 +8,12 @@ class MissingPersonReportViewSet(viewsets.ModelViewSet):
     serializer_class = MissingPersonReportSerializer
 
     def get_permissions(self):
-        # Anyone can create or list; only auth users can update/delete
-        if self.action in ['create', 'list', 'retrieve']:
-            return [AllowAny()]
-        return [IsAuthenticated()]
+        return [AllowAny()]
 
     def get_queryset(self):
-        return MissingPersonReport.objects.filter(
-            status='Searching'
-        ).order_by('-created_at')
+        return MissingPersonReport.objects.all().order_by('-created_at')
 
     def perform_create(self, serializer):
         user = self.request.user if self.request.user.is_authenticated else None
         serializer.save(reporter=user)
+

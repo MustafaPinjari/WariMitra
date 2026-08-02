@@ -4,6 +4,8 @@ import 'dart:ui';
 import '../theme/app_theme.dart';
 import '../widgets/spring_button.dart';
 import '../providers/auth_provider.dart';
+import 'register_screen.dart';
+
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -180,7 +182,35 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 18),
+
+                  Center(
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                        );
+                      },
+                      child: RichText(
+                        text: TextSpan(
+                          style: const TextStyle(fontSize: 13, color: Colors.white70),
+                          children: [
+                            const TextSpan(text: 'नवीन आहात? '),
+                            TextSpan(
+                              text: 'खाते तयार करा • Register Here',
+                              style: TextStyle(
+                                color: AppTheme.bhagwaBright,
+                                fontWeight: FontWeight.bold,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+
 
                   Text(
                     'द्रुत भूमिका निवड • Quick Role Selector',

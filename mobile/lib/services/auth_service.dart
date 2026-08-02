@@ -31,6 +31,33 @@ class AuthService {
     }
   }
 
+  /// Register new user account. Returns user data map on success.
+  /// Throws String error message on failure.
+  static Future<Map<String, dynamic>> register(Map<String, dynamic> data) async {
+    try {
+      final response = await ApiService.dio.post(
+        '/auth/register/',
+        data: data,
+      );
+
+      final access = response.data['access'] as String;
+      final refresh = response.data['refresh'] as String;
+
+      await _storage.write(key: 'access_token', value: access);
+      await _storage.write(key: 'refresh_token', value: refresh);
+
+      // Store user info
+      final user = response.data['user'] as Map<String, dynamic>? ?? {};
+      await _storage.write(key: 'user_role', value: user['role']?.toString() ?? 'PILGRIM');
+      await _storage.write(key: 'username', value: user['username']?.toString() ?? data['username']?.toString() ?? '');
+      await _storage.write(key: 'user_id', value: user['id']?.toString() ?? '');
+
+      return user;
+    } catch (e) {
+      throw ApiService.errorMessage(e);
+    }
+  }
+
   static Future<void> logout() async {
     await _storage.deleteAll();
     ApiService.resetDio(); // Reset dio so interceptor clears

@@ -39,6 +39,8 @@ class _LostFoundScreenState extends State<LostFoundScreen> {
     }
   }
 
+  String? _selectedImageName;
+
   Future<void> _submitItem() async {
     if (_titleController.text.trim().isEmpty || _locationController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -54,11 +56,13 @@ class _LostFoundScreenState extends State<LostFoundScreen> {
         'description': _descController.text.trim(),
         'location': _locationController.text.trim(),
         'contact_phone': _contactController.text.trim(),
+        'image_url': _selectedImageName != null ? 'https://dummyimage.com/600x400/00bcd4/ffffff&text=$_selectedImageName' : '',
       });
       _titleController.clear();
       _locationController.clear();
       _descController.clear();
       _contactController.clear();
+      setState(() => _selectedImageName = null);
       _loadItems();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -174,6 +178,38 @@ class _LostFoundScreenState extends State<LostFoundScreen> {
                       style: const TextStyle(color: Colors.white, fontSize: 13),
                       decoration: const InputDecoration(labelText: 'Contact Phone'),
                     ),
+                    const SizedBox(height: 12),
+
+                    // Dummy Image Upload Button
+                    InkWell(
+                      onTap: () {
+                        setState(() {
+                          _selectedImageName = 'item_photo_${DateTime.now().millisecondsSinceEpoch}.jpg';
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.cyan.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.add_a_photo_rounded, color: Colors.cyan, size: 18),
+                            const SizedBox(width: 8),
+                            Text(
+                              _selectedImageName != null ? '📸 Attached: $_selectedImageName' : 'फोटो जोडा (Upload Photo - Optional)',
+                              style: TextStyle(
+                                color: _selectedImageName != null ? Colors.cyanAccent : Colors.white70,
+                                fontSize: 12,
+                                fontWeight: _selectedImageName != null ? FontWeight.bold : FontWeight.normal,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 16),
 
                     ElevatedButton.icon(
@@ -182,7 +218,7 @@ class _LostFoundScreenState extends State<LostFoundScreen> {
                       icon: _isSubmitting
                           ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                           : const Icon(Icons.qr_code_scanner_rounded),
-                      label: const Text('नोंद करा • Submit'),
+                      label: const Text('नोंद करा • Submit Report'),
                     ),
                   ],
                 ),
@@ -204,38 +240,52 @@ class _LostFoundScreenState extends State<LostFoundScreen> {
               else if (_items.isEmpty)
                 const Text('No items reported yet', style: TextStyle(color: Colors.grey))
               else
-                ..._items.take(10).map((item) => Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: AppTheme.surfaceDark,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.cyan.withValues(alpha: 0.2)),
-                  ),
-                  child: Row(
-                    children: [
-                      const CircleAvatar(
-                        backgroundColor: Color(0x1A00BCD4),
-                        child: Icon(Icons.inventory_2_rounded, color: Colors.cyan),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(item['title']?.toString() ?? '', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                            Text('${item['category']} • ${item['location']}', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
-                          ],
+                ..._items.map((item) {
+                  final String status = item['status']?.toString() ?? 'REPORTED';
+                  final bool hasPhoto = item['image_url'] != null && item['image_url'].toString().isNotEmpty;
+
+                  Color statusColor = Colors.cyan;
+                  if (status == 'FOUND') statusColor = Colors.greenAccent;
+                  if (status == 'RETURNED') statusColor = Colors.blueAccent;
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppTheme.surfaceDark,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: statusColor.withValues(alpha: 0.15),
+                          child: Icon(
+                            hasPhoto ? Icons.photo_camera_rounded : Icons.inventory_2_rounded,
+                            color: statusColor,
+                          ),
                         ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(color: Colors.cyan.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
-                        child: Text(item['status']?.toString() ?? 'REPORTED', style: const TextStyle(color: Colors.cyan, fontSize: 10, fontWeight: FontWeight.bold)),
-                      ),
-                    ],
-                  ),
-                )),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(item['title']?.toString() ?? '', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                              Text('${item['category']} • ${item['location']}', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
+                              if (hasPhoto)
+                                const Text('📸 Photo attached', style: TextStyle(color: Colors.cyanAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
+                          child: Text(status, style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
             ],
           ),
         ),

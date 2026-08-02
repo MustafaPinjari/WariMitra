@@ -40,6 +40,8 @@ class _MissingPersonScreenState extends State<MissingPersonScreen> {
     }
   }
 
+  String? _selectedImageName;
+
   Future<void> _submitReport() async {
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -57,8 +59,15 @@ class _MissingPersonScreenState extends State<MissingPersonScreen> {
         'description': _descController.text.trim(),
         'last_seen_location': _locationController.text.trim(),
         'contact_mobile': _contactController.text.trim(),
+        'photo_url': _selectedImageName != null ? 'https://dummyimage.com/600x400/f97316/ffffff&text=$_selectedImageName' : '',
       });
+      _nameController.clear();
+      _ageController.clear();
+      _descController.clear();
+      _locationController.clear();
+      _contactController.clear();
       setState(() {
+        _selectedImageName = null;
         _isLoading = false;
       });
       if (mounted) {
@@ -186,6 +195,38 @@ class _MissingPersonScreenState extends State<MissingPersonScreen> {
                       style: const TextStyle(color: Colors.white),
                       decoration: _buildInputDecoration(hint: '+91 98765 43210'),
                     ),
+                    const SizedBox(height: 12),
+
+                    // Dummy Photo Attachment Button
+                    InkWell(
+                      onTap: () {
+                        setState(() {
+                          _selectedImageName = 'person_photo_${DateTime.now().millisecondsSinceEpoch}.jpg';
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.add_a_photo_rounded, color: Colors.orange, size: 18),
+                            const SizedBox(width: 8),
+                            Text(
+                              _selectedImageName != null ? '📸 Attached: $_selectedImageName' : 'फोटो जोडा (Upload Photo - Optional)',
+                              style: TextStyle(
+                                color: _selectedImageName != null ? Colors.orangeAccent : Colors.white70,
+                                fontSize: 12,
+                                fontWeight: _selectedImageName != null ? FontWeight.bold : FontWeight.normal,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 20),
 
                     SpringButton(
@@ -244,13 +285,20 @@ class _MissingPersonScreenState extends State<MissingPersonScreen> {
                   itemCount: _reports.length,
                   itemBuilder: (context, index) {
                     final item = _reports[index];
+                    final String status = item['status']?.toString() ?? 'Searching';
+                    final bool hasPhoto = item['photo_url'] != null && item['photo_url'].toString().isNotEmpty;
+
+                    Color statusColor = Colors.orange;
+                    if (status == 'Found') statusColor = Colors.greenAccent;
+                    if (status == 'Closed') statusColor = Colors.grey;
+
                     return Container(
                       margin: const EdgeInsets.only(bottom: 10),
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.04),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+                        border: Border.all(color: statusColor.withValues(alpha: 0.3)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -258,8 +306,11 @@ class _MissingPersonScreenState extends State<MissingPersonScreen> {
                           Row(
                             children: [
                               CircleAvatar(
-                                backgroundColor: Colors.orange.withValues(alpha: 0.2),
-                                child: const Icon(Icons.person_search_rounded, color: Colors.orange),
+                                backgroundColor: statusColor.withValues(alpha: 0.2),
+                                child: Icon(
+                                  hasPhoto ? Icons.photo_camera_rounded : Icons.person_search_rounded,
+                                  color: statusColor,
+                                ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -274,18 +325,20 @@ class _MissingPersonScreenState extends State<MissingPersonScreen> {
                                       '${item['category']} • Age: ${item['age'] ?? 'N/A'}',
                                       style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12),
                                     ),
+                                    if (hasPhoto)
+                                      const Text('📸 Photo attached', style: TextStyle(color: Colors.orangeAccent, fontSize: 10, fontWeight: FontWeight.bold)),
                                   ],
                                 ),
                               ),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: Colors.orange.withValues(alpha: 0.2),
+                                  color: statusColor.withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
-                                  item['status']?.toString() ?? 'Searching',
-                                  style: const TextStyle(color: Colors.orange, fontSize: 11, fontWeight: FontWeight.bold),
+                                  status,
+                                  style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.bold),
                                 ),
                               ),
                             ],

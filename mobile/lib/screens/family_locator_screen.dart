@@ -44,6 +44,7 @@ class _FamilyLocatorScreenState extends State<FamilyLocatorScreen> {
     final pos = await LocationService.getCurrentPosition();
     if (mounted && pos != null) {
       setState(() => _currentPosition = pos);
+      _updateMapMarkers();
     }
   }
 
@@ -74,21 +75,38 @@ class _FamilyLocatorScreenState extends State<FamilyLocatorScreen> {
 
   void _updateMapMarkers() {
     final Set<Marker> newMarkers = {};
+
+    // 1. Add current user position marker if available
+    if (_currentPosition != null) {
+      newMarkers.add(
+        Marker(
+          markerId: const MarkerId('my_location'),
+          position: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+          infoWindow: const InfoWindow(
+            title: 'माझे स्थान • My Location',
+            snippet: 'You are here',
+          ),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueCyan),
+        ),
+      );
+    }
+
+    // 2. Add family members markers
     for (int i = 0; i < _members.length; i++) {
       final member = _members[i];
       final double? lat = double.tryParse(member['latitude']?.toString() ?? '');
       final double? lng = double.tryParse(member['longitude']?.toString() ?? '');
       final String name = member['full_name']?.toString() ?? member['username'] ?? 'Family Member';
-      final battery = member['battery_level'];
+      final int batteryVal = member['battery_level'] ?? 85;
 
       if (lat != null && lng != null) {
         newMarkers.add(
           Marker(
-            markerId: MarkerId('member_$i'),
+            markerId: MarkerId('member_${member['user'] ?? i}'),
             position: LatLng(lat, lng),
             infoWindow: InfoWindow(
               title: name,
-              snippet: 'Battery: ${battery != null ? '$battery%' : 'N/A'} • ${_getRelativeTime(member['updated_at'])}',
+              snippet: '🔋 Battery: $batteryVal% • ${_getRelativeTime(member['updated_at'])}',
             ),
             icon: BitmapDescriptor.defaultMarkerWithHue(
               i == 0 ? BitmapDescriptor.hueAzure : BitmapDescriptor.hueOrange,
@@ -98,8 +116,10 @@ class _FamilyLocatorScreenState extends State<FamilyLocatorScreen> {
       }
     }
 
-    setState(() => _markers.clear());
-    setState(() => _markers.addAll(newMarkers));
+    setState(() {
+      _markers.clear();
+      _markers.addAll(newMarkers);
+    });
   }
 
   void _toggleAutoSharing(bool value) {
@@ -320,6 +340,18 @@ class _FamilyLocatorScreenState extends State<FamilyLocatorScreen> {
     );
   }
 
+  LatLng get _mapCenter {
+    if (_members.isNotEmpty) {
+      final double? lat = double.tryParse(_members[0]['latitude']?.toString() ?? '');
+      final double? lng = double.tryParse(_members[0]['longitude']?.toString() ?? '');
+      if (lat != null && lng != null) return LatLng(lat, lng);
+    }
+    if (_currentPosition != null) {
+      return LatLng(_currentPosition!.latitude, _currentPosition!.longitude);
+    }
+    return const LatLng(18.3444, 74.0305);
+  }
+
   String _getRelativeTime(String? dateTimeStr) {
     if (dateTimeStr == null) return 'Unknown';
     final dt = DateTime.tryParse(dateTimeStr)?.toLocal();
@@ -406,39 +438,97 @@ class _FamilyLocatorScreenState extends State<FamilyLocatorScreen> {
                   ),
                   Switch(
                     value: _isAutoSharing,
-                    activeColor: const Color(0xFF10B981),
+                    activeThumbColor: const Color(0xFF10B981),
                     onChanged: _toggleAutoSharing,
                   ),
                 ],
               ),
             ),
 
-            // Map View Header (If markers present)
-            if (_members.isNotEmpty) ...[
-              Container(
-                height: 180,
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                clipBehavior: Clip.antiAlias,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.3)),
-                ),
-                child: GoogleMap(
-                  initialCameraPosition: CameraPosition(
-                    target: LatLng(
-                      double.tryParse(_members[0]['latitude']?.toString() ?? '18.3444') ?? 18.3444,
-                      double.tryParse(_members[0]['longitude']?.toString() ?? '74.0305') ?? 74.0305,
-                    ),
-                    zoom: 13,
-                  ),
-                  markers: _markers,
-                  myLocationEnabled: true,
-                  zoomControlsEnabled: false,
-                  mapToolbarEnabled: false,
-                  onMapCreated: (controller) => _mapController = controller,
-                ),
+            // Map View Header (Always visible)
+            Container(
+              height: 200,
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.4), width: 1.2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.4),
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  )
+                ],
               ),
-            ],
+              child: Stack(
+                children: [
+                  GoogleMap(
+                    initialCameraPosition: CameraPosition(
+                      target: _mapCenter,
+                      zoom: 13,
+                    ),
+                    markers: _markers,
+                    myLocationEnabled: true,
+                    zoomControlsEnabled: false,
+                    mapToolbarEnabled: false,
+                    onMapCreated: (controller) => _mapController = controller,
+                  ),
+
+                  // Top Status Badge Overlay
+                  Positioned(
+                    top: 10,
+                    left: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F172A).withValues(alpha: 0.88),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Color(0xFF10B981),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _members.isNotEmpty ? '${_members.length} Members Active' : 'Live Map Ready',
+                            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Recenter / Fit Button Overlay
+                  Positioned(
+                    bottom: 10,
+                    right: 10,
+                    child: FloatingActionButton.small(
+                      heroTag: 'recenter_map_btn',
+                      backgroundColor: const Color(0xFF0F172A),
+                      foregroundColor: Colors.blueAccent,
+                      onPressed: () {
+                        if (_mapController != null) {
+                          _mapController!.animateCamera(
+                            CameraUpdate.newLatLngZoom(_mapCenter, 14),
+                          );
+                        }
+                      },
+                      child: const Icon(Icons.my_location_rounded, size: 20),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
 
             // Family Groups Section Header
             Padding(
@@ -630,7 +720,7 @@ class _FamilyLocatorScreenState extends State<FamilyLocatorScreen> {
                           itemCount: _members.length,
                           itemBuilder: (context, index) {
                             final member = _members[index];
-                            final int? battery = member['battery_level'];
+                            final int batteryVal = member['battery_level'] ?? 85;
                             final double? lat = double.tryParse(member['latitude']?.toString() ?? '');
                             final double? lng = double.tryParse(member['longitude']?.toString() ?? '');
                             final String name = member['full_name']?.toString() ?? member['username'] ?? 'Unknown Member';
@@ -638,12 +728,10 @@ class _FamilyLocatorScreenState extends State<FamilyLocatorScreen> {
                             final String distance = _getDistanceString(lat, lng);
 
                             Color batteryColor = Colors.greenAccent;
-                            if (battery != null) {
-                              if (battery < 20) {
-                                batteryColor = Colors.redAccent;
-                              } else if (battery < 50) {
-                                batteryColor = Colors.orangeAccent;
-                              }
+                            if (batteryVal < 20) {
+                              batteryColor = Colors.redAccent;
+                            } else if (batteryVal < 50) {
+                              batteryColor = Colors.orangeAccent;
                             }
 
                             return Container(
@@ -685,19 +773,27 @@ class _FamilyLocatorScreenState extends State<FamilyLocatorScreen> {
                                   Column(
                                     crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            battery != null && battery < 20 ? Icons.battery_alert_rounded : Icons.battery_std_rounded,
-                                            size: 16,
-                                            color: batteryColor,
-                                          ),
-                                          const SizedBox(width: 2),
-                                          Text(
-                                            battery != null ? '$battery%' : 'N/A',
-                                            style: TextStyle(color: batteryColor, fontSize: 12, fontWeight: FontWeight.bold),
-                                          ),
-                                        ],
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: batteryColor.withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(color: batteryColor.withValues(alpha: 0.4)),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              batteryVal < 20 ? Icons.battery_alert_rounded : Icons.battery_charging_full_rounded,
+                                              size: 14,
+                                              color: batteryColor,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              '$batteryVal%',
+                                              style: TextStyle(color: batteryColor, fontSize: 11, fontWeight: FontWeight.bold),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                       if (lat != null && lng != null) ...[
                                         const SizedBox(height: 4),
