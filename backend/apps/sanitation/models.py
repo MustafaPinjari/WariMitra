@@ -22,6 +22,8 @@ class WasteReport(models.Model):
     location_name = models.CharField(max_length=200)
     waste_type = models.CharField(max_length=100) # Plastic, Organic, Overflowing Bin, Sewage
     description = models.TextField(blank=True, null=True)
+    image = models.ImageField(upload_to='waste_reports/', blank=True, null=True)
+    image_url = models.CharField(max_length=500, blank=True, null=True)
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='PENDING')
     latitude = models.FloatField()
     longitude = models.FloatField()

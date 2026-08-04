@@ -1,10 +1,52 @@
+import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'api_service.dart';
+import 'notification_service.dart';
 
 class LocationService {
   static const MethodChannel _batteryChannel = MethodChannel('plugins.flutter.io/battery');
   static int _cachedBatteryLevel = 85;
+
+  static bool _isAutoSharing = false;
+  static Timer? _globalAutoShareTimer;
+
+  /// Returns whether global live location auto-sharing is currently active
+  static bool get isAutoSharing => _isAutoSharing;
+
+  /// Starts persistent global live location sharing across all pages & app minimization
+  static void startAutoSharing({Duration interval = const Duration(seconds: 30)}) {
+    _isAutoSharing = true;
+    _globalAutoShareTimer?.cancel();
+
+    // Trigger immediate initial upload
+    updateBackendLocation();
+    NotificationService.showLocationSharingNotification();
+
+    // Set global periodic timer that stays active across all screens
+    _globalAutoShareTimer = Timer.periodic(interval, (_) {
+      if (_isAutoSharing) {
+        updateBackendLocation();
+      }
+    });
+  }
+
+  /// Stops global live location sharing
+  static void stopAutoSharing() {
+    _isAutoSharing = false;
+    _globalAutoShareTimer?.cancel();
+    _globalAutoShareTimer = null;
+    NotificationService.cancelLocationSharingNotification();
+  }
+
+  /// Toggles global live location sharing state
+  static void toggleAutoSharing(bool enable) {
+    if (enable) {
+      startAutoSharing();
+    } else {
+      stopAutoSharing();
+    }
+  }
 
   /// Rounds a double coordinate to specified decimal places (default 6).
   static double roundCoordinate(double value, [int places = 6]) {
@@ -68,4 +110,3 @@ class LocationService {
     }
   }
 }
-

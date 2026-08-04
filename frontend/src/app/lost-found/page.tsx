@@ -27,7 +27,8 @@ export default function LostFoundPage() {
   const [contactPhone, setContactPhone] = useState('');
   const [personAge, setPersonAge] = useState('');
   
-  // Dummy Image Upload State
+  // Real Image Upload State
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageFileName, setImageFileName] = useState<string>('');
 
@@ -58,6 +59,7 @@ export default function LostFoundPage() {
   const handleImagePick = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setSelectedFile(file);
       setImageFileName(file.name);
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -73,19 +75,20 @@ export default function LostFoundPage() {
 
     try {
       if (reportType === 'ITEM') {
-        const payload = {
-          title,
-          category,
-          description,
-          location,
-          contact_phone: contactPhone,
-          image_url: imagePreview || '',
-        };
+        const formData = new FormData();
+        formData.append('title', title);
+        formData.append('category', category);
+        formData.append('description', description);
+        formData.append('location', location);
+        formData.append('contact_phone', contactPhone);
+        
+        if (selectedFile) {
+          formData.append('image', selectedFile);
+        }
 
         const res = await fetch(`${API_BASE}/lost-found/items/`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          body: formData,
         });
 
         if (res.ok) {
@@ -94,20 +97,21 @@ export default function LostFoundPage() {
           fetchAllData();
         }
       } else {
-        const payload = {
-          name: title,
-          age: parseInt(personAge) || 0,
-          category: category === 'Bag' ? 'Child' : category,
-          description,
-          last_seen_location: location,
-          contact_mobile: contactPhone,
-          photo_url: imagePreview || '',
-        };
+        const formData = new FormData();
+        formData.append('name', title);
+        formData.append('age', (parseInt(personAge) || 0).toString());
+        formData.append('category', category === 'Bag' ? 'Child' : category);
+        formData.append('description', description);
+        formData.append('last_seen_location', location);
+        formData.append('contact_mobile', contactPhone);
+
+        if (selectedFile) {
+          formData.append('photo', selectedFile);
+        }
 
         const res = await fetch(`${API_BASE}/missing-person/reports/`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          body: formData,
         });
 
         if (res.ok) {
@@ -129,6 +133,7 @@ export default function LostFoundPage() {
     setLocation('');
     setContactPhone('');
     setPersonAge('');
+    setSelectedFile(null);
     setImagePreview(null);
     setImageFileName('');
     setTimeout(() => {
@@ -250,10 +255,24 @@ export default function LostFoundPage() {
                     </span>
                   </div>
 
-                  {person.photo_url && (
-                    <div className="flex items-center gap-2 p-2 rounded-xl bg-white/5 border border-white/10">
-                      <Camera size={14} className="text-cyan-400" />
-                      <span className="text-[11px] text-cyan-300 font-bold truncate">📸 Photo attached</span>
+                  {(person.photo || person.photo_url) && (
+                    <div className="p-2 rounded-xl bg-white/5 border border-white/10 flex items-center gap-3">
+                      <img 
+                        src={person.photo || person.photo_url} 
+                        alt={person.name} 
+                        className="w-12 h-12 object-cover rounded-lg border border-white/15" 
+                      />
+                      <div>
+                        <span className="text-cyan-300 text-[11px] font-bold block">📸 Uploaded Photo (S3/Media)</span>
+                        <a 
+                          href={person.photo || person.photo_url} 
+                          target="_blank" 
+                          rel="noreferrer"
+                          className="text-[10px] text-slate-400 hover:text-white underline"
+                        >
+                          View Photo
+                        </a>
+                      </div>
                     </div>
                   )}
 
@@ -342,10 +361,24 @@ export default function LostFoundPage() {
                     </span>
                   </div>
 
-                  {item.image_url && (
-                    <div className="flex items-center gap-2 p-2 rounded-xl bg-white/5 border border-white/10">
-                      <Camera size={14} className="text-cyan-400" />
-                      <span className="text-[11px] text-cyan-300 font-bold truncate">📸 Photo attached</span>
+                  {(item.image || item.image_url) && (
+                    <div className="p-2 rounded-xl bg-white/5 border border-white/10 flex items-center gap-3">
+                      <img 
+                        src={item.image || item.image_url} 
+                        alt={item.title} 
+                        className="w-12 h-12 object-cover rounded-lg border border-white/15" 
+                      />
+                      <div>
+                        <span className="text-cyan-300 text-[11px] font-bold block">📸 Item Photo (S3/Media)</span>
+                        <a 
+                          href={item.image || item.image_url} 
+                          target="_blank" 
+                          rel="noreferrer"
+                          className="text-[10px] text-slate-400 hover:text-white underline"
+                        >
+                          View Image
+                        </a>
+                      </div>
                     </div>
                   )}
 
@@ -520,15 +553,15 @@ export default function LostFoundPage() {
                   />
                 </div>
 
-                {/* Dummy Image Upload Field */}
+                {/* Real Image Upload Field (AWS S3 Container Storage via FormData) */}
                 <div>
                   <label className="block font-bold text-slate-300 mb-1">
-                    फोटो जोडा (ऐच्छिक) • Upload Photo (Optional Dummy Input)
+                    फोटो जोडा (ऐच्छिक) • Upload Photo (Saved to S3 Bucket)
                   </label>
                   <div className="flex items-center gap-3">
                     <label className="cursor-pointer px-3 py-2 bg-white/10 hover:bg-white/15 rounded-xl border border-white/15 flex items-center gap-2 text-slate-200 text-xs font-bold transition-all">
                       <Camera size={15} className="text-cyan-400" />
-                      <span>फोटो निवडा (Select Photo)</span>
+                      <span>फोटो निवडा (Select File)</span>
                       <input type="file" accept="image/*" onChange={handleImagePick} className="hidden" />
                     </label>
                     {imageFileName && (
@@ -540,7 +573,7 @@ export default function LostFoundPage() {
                   {imagePreview && (
                     <div className="mt-2 p-2 rounded-xl bg-white/5 border border-cyan-500/30 flex items-center gap-2">
                       <img src={imagePreview} alt="Preview" className="w-10 h-10 object-cover rounded-lg" />
-                      <span className="text-[10px] text-slate-300 font-bold">Photo preview attached</span>
+                      <span className="text-[10px] text-slate-300 font-bold">Photo ready for upload</span>
                     </div>
                   )}
                 </div>

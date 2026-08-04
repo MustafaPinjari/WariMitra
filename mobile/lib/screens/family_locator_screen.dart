@@ -6,10 +6,9 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import '../services/api_service.dart';
 import '../services/location_service.dart';
-import '../services/notification_service.dart';
 
 class FamilyLocatorScreen extends StatefulWidget {
-  const FamilyLocatorScreen({Key? key}) : super(key: key);
+  const FamilyLocatorScreen({super.key});
 
   @override
   State<FamilyLocatorScreen> createState() => _FamilyLocatorScreenState();
@@ -21,7 +20,6 @@ class _FamilyLocatorScreenState extends State<FamilyLocatorScreen> {
   bool _isLoading = true;
   bool _isUpdatingLocation = false;
   bool _isAutoSharing = false;
-  Timer? _autoShareTimer;
 
   Position? _currentPosition;
   GoogleMapController? _mapController;
@@ -30,13 +28,13 @@ class _FamilyLocatorScreenState extends State<FamilyLocatorScreen> {
   @override
   void initState() {
     super.initState();
+    _isAutoSharing = LocationService.isAutoSharing;
     _loadData();
     _fetchUserLocation();
   }
 
   @override
   void dispose() {
-    _autoShareTimer?.cancel();
     super.dispose();
   }
 
@@ -123,26 +121,21 @@ class _FamilyLocatorScreenState extends State<FamilyLocatorScreen> {
   }
 
   void _toggleAutoSharing(bool value) {
-    setState(() => _isAutoSharing = value);
-    _autoShareTimer?.cancel();
+    LocationService.toggleAutoSharing(value);
+    setState(() => _isAutoSharing = LocationService.isAutoSharing);
 
     if (value) {
       _shareMyLocation(silent: true);
-      NotificationService.showLocationSharingNotification();
-      _autoShareTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-        _shareMyLocation(silent: true);
-      });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('⚡ Live location sharing enabled (Updates every 30s)'),
+            content: Text('⚡ Live location sharing active globally (persists across screens)'),
             backgroundColor: Color(0xFF10B981),
-            duration: Duration(seconds: 2),
+            duration: Duration(seconds: 3),
           ),
         );
       }
     } else {
-      NotificationService.cancelLocationSharingNotification();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

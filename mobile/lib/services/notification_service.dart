@@ -21,11 +21,17 @@ class NotificationService {
       await _notificationsPlugin.initialize(
         settings: initializationSettings,
       );
+
+      // Request notification permission for Android 13+ (API level 33+)
+      await _notificationsPlugin
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          ?.requestNotificationsPermission();
+
       _isInitialized = true;
     } catch (_) {}
   }
 
-  /// Displays a persistent/ongoing app notification when location sharing is active.
+  /// Displays a persistent/ongoing app notification in the status bar when location sharing is active.
   static Future<void> showLocationSharingNotification({
     String title = '📍 Live Location Sharing Active',
     String body = 'Your GPS position is being shared live with your WariMitra family group.',
@@ -33,13 +39,14 @@ class NotificationService {
     await init();
     try {
       const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-        'location_sharing_channel',
-        'Location Sharing Notifications',
+        'location_sharing_channel_v2',
+        'Live Location Sharing Notifications',
         channelDescription: 'Ongoing notification while live GPS sharing is active',
-        importance: Importance.low,
-        priority: Priority.low,
+        importance: Importance.high,
+        priority: Priority.high,
         ongoing: true,
         autoCancel: false,
+        showWhen: true,
         icon: '@mipmap/ic_launcher',
       );
 

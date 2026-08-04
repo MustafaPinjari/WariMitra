@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:vibration/vibration.dart';
 import 'dart:async';
 import '../theme/app_theme.dart';
 import '../widgets/spring_button.dart';
@@ -7,7 +8,7 @@ import '../services/api_service.dart';
 import '../services/location_service.dart';
 
 class SOSScreen extends StatefulWidget {
-  const SOSScreen({Key? key}) : super(key: key);
+  const SOSScreen({super.key});
 
   @override
   State<SOSScreen> createState() => _SOSScreenState();
@@ -26,7 +27,7 @@ class _SOSScreenState extends State<SOSScreen> with SingleTickerProviderStateMix
 
   // Mock responder data (shown after SOS activation)
   final List<Map<String, dynamic>> _responders = [
-    {'icon': Icons.local_hospital_rounded, 'title': 'रुग्णवाहिका', 'eta': 'ETA: 4 mins', 'color': Color(0xFF10B981)},
+    {'icon': Icons.local_hospital_rounded, 'title': 'रुग्णवाहिका', 'eta': 'ETA: 4 mins', 'color': const Color(0xFF10B981)},
     {'icon': Icons.security_rounded, 'title': 'पोलीस गस्त पथक', 'eta': 'ETA: 6 mins', 'color': Colors.indigoAccent},
     {'icon': Icons.volunteer_activism_rounded, 'title': 'जवळचे मदतनीस', 'eta': 'ETA: 2 mins', 'color': AppTheme.bhagwaBright},
   ];
@@ -61,21 +62,61 @@ class _SOSScreenState extends State<SOSScreen> with SingleTickerProviderStateMix
     }
   }
 
+  Timer? _vibrateHoldTimer;
+
+  void _triggerHardwareVibration(int durationMs) async {
+    try {
+      final bool hasVibrator = await Vibration.hasVibrator();
+      if (hasVibrator) {
+        Vibration.vibrate(duration: durationMs);
+      } else {
+        HapticFeedback.vibrate();
+      }
+    } catch (_) {
+      HapticFeedback.vibrate();
+    }
+  }
+
+  void _triggerHardwarePattern(List<int> pattern) async {
+    try {
+      final bool hasVibrator = await Vibration.hasVibrator();
+      if (hasVibrator) {
+        Vibration.vibrate(pattern: pattern);
+      } else {
+        HapticFeedback.vibrate();
+      }
+    } catch (_) {
+      HapticFeedback.vibrate();
+    }
+  }
+
   void _onHoldStart() {
     if (_isActivated) return;
     HapticFeedback.heavyImpact();
+    _triggerHardwareVibration(120);
+    _vibrateHoldTimer?.cancel();
+    _vibrateHoldTimer = Timer.periodic(const Duration(milliseconds: 220), (_) {
+      _triggerHardwareVibration(80);
+    });
     _holdController.forward();
   }
 
   void _onHoldEnd() {
+    _vibrateHoldTimer?.cancel();
+    _vibrateHoldTimer = null;
     if (_isActivated) return;
     if (_holdController.status != AnimationStatus.completed) {
       _holdController.reverse();
+      HapticFeedback.mediumImpact();
+      _triggerHardwareVibration(50);
     }
   }
 
   Future<void> _triggerEmergencyBroadcast() async {
-    HapticFeedback.vibrate();
+    _vibrateHoldTimer?.cancel();
+    _vibrateHoldTimer = null;
+    _triggerHardwarePattern([0, 300, 100, 300, 100, 300]);
+
     setState(() {
       _isActivated = true;
       _isSending = true;
@@ -131,8 +172,9 @@ class _SOSScreenState extends State<SOSScreen> with SingleTickerProviderStateMix
 
     setState(() => _isSending = false);
 
-    // Countdown timer
+    // Countdown timer with continuous alarm vibration pulses
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      _triggerHardwareVibration(250);
       if (_cancelCountdown > 1) {
         setState(() => _cancelCountdown--);
       } else {
@@ -143,6 +185,7 @@ class _SOSScreenState extends State<SOSScreen> with SingleTickerProviderStateMix
 
   Future<void> _cancelEmergency() async {
     _countdownTimer?.cancel();
+    _vibrateHoldTimer?.cancel();
     _holdController.reset();
 
     // If an incident was created, close it
@@ -156,11 +199,12 @@ class _SOSScreenState extends State<SOSScreen> with SingleTickerProviderStateMix
       _isActivated = false;
       _activeIncidentId = null;
     });
-    HapticFeedback.mediumImpact();
+    HapticFeedback.heavyImpact();
   }
 
   @override
   void dispose() {
+    _vibrateHoldTimer?.cancel();
     _holdController.dispose();
     _countdownTimer?.cancel();
     super.dispose();
