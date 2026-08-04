@@ -12,3 +12,5 @@ channels
 daphne
 gunicorn
 django-extensions
+boto3
+

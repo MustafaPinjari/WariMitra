@@ -34,69 +34,6 @@ class _NearbyServicesScreenState extends State<NearbyServicesScreen> {
     'Parking',
   ];
 
-  final List<Map<String, dynamic>> _fallbackServices = [
-    {
-      'id': 'fb1',
-      'name': 'Drinking Water Point 4 (Alandi Chowk)',
-      'category': 'Water',
-      'details': 'Continuous clean drinking water tanker with 10 taps and ORS distribution.',
-      'latitude': 18.6824,
-      'longitude': 73.8973,
-      'address': 'Alandi Chowk, Sector 1, Pune',
-      'contact_number': '+91 98230 11223',
-      'status': 'Active',
-      'capacity_info': '50,000L Capacity',
-    },
-    {
-      'id': 'fb2',
-      'name': 'Camp Alpha Health Center',
-      'category': 'Medical',
-      'details': 'Primary medical triage, emergency first aid, heat stroke treatment.',
-      'latitude': 18.6721,
-      'longitude': 73.8889,
-      'address': 'Gate 3, Palkhi Transit Grounds, Alandi',
-      'contact_number': '+91 98221 44556',
-      'status': 'Active',
-      'capacity_info': '4 Doctors • 12 Beds',
-    },
-    {
-      'id': 'fb3',
-      'name': 'Saswad Annadhana Food Camp',
-      'category': 'Food',
-      'details': 'Free hot Maharashtrian meals (Pithla Bhakri, Khichdi, Tea) served continuously.',
-      'latitude': 18.3450,
-      'longitude': 74.0300,
-      'address': 'Near Saswad Bus Stand, Saswad',
-      'contact_number': '+91 99700 88990',
-      'status': 'Available',
-      'capacity_info': 'Serves ~15,000 pilgrims/day',
-    },
-    {
-      'id': 'fb4',
-      'name': 'Hadapsar Bio Toilet Complex',
-      'category': 'Toilets',
-      'details': 'Clean eco-friendly mobile bio-toilets with continuous water supply.',
-      'latitude': 18.5020,
-      'longitude': 73.9280,
-      'address': 'Hadapsar Gadital, Pune',
-      'contact_number': '+91 98900 11223',
-      'status': 'Available',
-      'capacity_info': '30 Toilet Units',
-    },
-    {
-      'id': 'fb5',
-      'name': 'Shelter Camp 12 — Night Stay',
-      'category': 'Shelter',
-      'details': 'Weatherproof waterproof tents, clean bedding, charging points.',
-      'latitude': 18.5204,
-      'longitude': 73.8567,
-      'address': 'PMC Grounds, Shivajinagar',
-      'contact_number': '+91 98212 99887',
-      'status': 'Available',
-      'capacity_info': '120 Beds Available',
-    },
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -132,16 +69,17 @@ class _NearbyServicesScreenState extends State<NearbyServicesScreen> {
       }).toList();
 
       setState(() {
-        _services = parsed.isNotEmpty ? parsed : _fallbackServices;
+        _services = parsed;
         _isLoading = false;
       });
     } catch (_) {
       setState(() {
-        _services = _fallbackServices;
+        _services = [];
         _isLoading = false;
       });
     }
   }
+
 
   List<Map<String, dynamic>> get _filteredServices {
     if (_selectedCategory == 'All') return _services;
@@ -219,189 +157,7 @@ class _NearbyServicesScreenState extends State<NearbyServicesScreen> {
     return const latlong.LatLng(18.3444, 74.0305);
   }
 
-  void _showAddServiceModal() {
-    final nameCtrl = TextEditingController();
-    final detailsCtrl = TextEditingController();
-    final capacityCtrl = TextEditingController();
-    final contactCtrl = TextEditingController();
-    final addressCtrl = TextEditingController();
-    String selectedCat = 'Water';
 
-    double lat = _currentPosition?.latitude ?? 18.5204;
-    double lng = _currentPosition?.longitude ?? 73.8567;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: const Color(0xFF1A1D24),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setModalState) => Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('📍 Add Service Point on Map',
-                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded, color: Colors.grey),
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
-                ],
-              ),
-              const Text('Add new water, medical, food or rest facility for all pilgrims.',
-                  style: TextStyle(color: Colors.grey, fontSize: 12)),
-              const SizedBox(height: 16),
-
-              TextField(
-                controller: nameCtrl,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Service Name (e.g. Drinking Water Tanker 5)',
-                  labelStyle: const TextStyle(color: Colors.grey, fontSize: 13),
-                  filled: true,
-                  fillColor: Colors.white.withValues(alpha: 0.05),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      dropdownColor: const Color(0xFF1A1D24),
-                      initialValue: selectedCat,
-                      style: const TextStyle(color: Colors.white, fontSize: 13),
-                      decoration: InputDecoration(
-                        labelText: 'Category',
-                        labelStyle: const TextStyle(color: Colors.grey, fontSize: 13),
-                        filled: true,
-                        fillColor: Colors.white.withValues(alpha: 0.05),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      items: _categories.where((c) => c != 'All').map((cat) => DropdownMenuItem(
-                        value: cat,
-                        child: Text(cat, style: const TextStyle(color: Colors.white)),
-                      )).toList(),
-                      onChanged: (val) {
-                        if (val != null) setModalState(() => selectedCat = val);
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              TextField(
-                controller: detailsCtrl,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Details / Description',
-                  labelStyle: const TextStyle(color: Colors.grey, fontSize: 13),
-                  filled: true,
-                  fillColor: Colors.white.withValues(alpha: 0.05),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: capacityCtrl,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        labelText: 'Capacity (e.g. 50k L)',
-                        labelStyle: const TextStyle(color: Colors.grey, fontSize: 12),
-                        filled: true,
-                        fillColor: Colors.white.withValues(alpha: 0.05),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: TextField(
-                      controller: contactCtrl,
-                      keyboardType: TextInputType.phone,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        labelText: 'Phone',
-                        labelStyle: const TextStyle(color: Colors.grey, fontSize: 12),
-                        filled: true,
-                        fillColor: Colors.white.withValues(alpha: 0.05),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                  onPressed: () async {
-                    final name = nameCtrl.text.trim();
-                    if (name.isEmpty) return;
-                    Navigator.pop(ctx);
-
-                    final payload = {
-                      'name': name,
-                      'category': selectedCat,
-                      'details': detailsCtrl.text.trim().isEmpty ? 'Service point' : detailsCtrl.text.trim(),
-                      'latitude': lat,
-                      'longitude': lng,
-                      'address': addressCtrl.text.trim().isEmpty ? 'GPS Location' : addressCtrl.text.trim(),
-                      'contact_number': contactCtrl.text.trim(),
-                      'status': 'Active',
-                      'capacity_info': capacityCtrl.text.trim().isEmpty ? 'Available' : capacityCtrl.text.trim(),
-                    };
-
-                    final messenger = ScaffoldMessenger.of(ctx);
-                    try {
-                      await ApiService.dio.post('/maps/services/', data: payload);
-                      messenger.showSnackBar(
-                        SnackBar(content: Text('🎉 Service "$name" added to Live Map!'), backgroundColor: const Color(0xFF10B981)),
-                      );
-                      _loadServices();
-                    } catch (_) {
-                      setState(() {
-                        _services.insert(0, {
-                          'id': UniqueKey().toString(),
-                          ...payload,
-                        });
-                      });
-                    }
-                  },
-                  icon: const Icon(Icons.check_circle_rounded, color: Colors.white),
-                  label: const Text('Save & Publish to Map', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -413,16 +169,16 @@ class _NearbyServicesScreenState extends State<NearbyServicesScreen> {
       mapMarkers.add(
         Marker(
           point: latlong.LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-          width: 36,
-          height: 36,
+          width: 24,
+          height: 24,
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.cyan,
+              color: Colors.blueAccent,
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white, width: 2),
-              boxShadow: const [BoxShadow(color: Colors.cyanAccent, blurRadius: 8)],
+              boxShadow: const [BoxShadow(color: Colors.blueAccent, blurRadius: 4)],
             ),
-            child: const Icon(Icons.my_location_rounded, color: Colors.black, size: 20),
+            child: const Icon(Icons.my_location_rounded, color: Colors.white, size: 13),
           ),
         ),
       );
@@ -440,8 +196,8 @@ class _NearbyServicesScreenState extends State<NearbyServicesScreen> {
       mapMarkers.add(
         Marker(
           point: latlong.LatLng(lat, lng),
-          width: isSelected ? 44 : 36,
-          height: isSelected ? 44 : 36,
+          width: isSelected ? 30 : 22,
+          height: isSelected ? 30 : 22,
           child: GestureDetector(
             onTap: () {
               setState(() => _selectedPoint = service);
@@ -452,15 +208,15 @@ class _NearbyServicesScreenState extends State<NearbyServicesScreen> {
               decoration: BoxDecoration(
                 color: color,
                 shape: BoxShape.circle,
-                border: Border.all(color: isSelected ? Colors.white : Colors.black45, width: isSelected ? 3 : 1.5),
+                border: Border.all(color: isSelected ? Colors.black : Colors.white, width: isSelected ? 2 : 1),
                 boxShadow: [
                   BoxShadow(
-                    color: color.withValues(alpha: 0.5),
-                    blurRadius: isSelected ? 12 : 6,
+                    color: color.withValues(alpha: 0.4),
+                    blurRadius: isSelected ? 8 : 3,
                   )
                 ],
               ),
-              child: Icon(icon, color: Colors.white, size: isSelected ? 22 : 18),
+              child: Icon(icon, color: Colors.white, size: isSelected ? 16 : 12),
             ),
           ),
         ),
@@ -469,12 +225,6 @@ class _NearbyServicesScreenState extends State<NearbyServicesScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF0F1115),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: Colors.orange,
-        icon: const Icon(Icons.add_location_alt_rounded, color: Colors.white),
-        label: const Text('Add Point', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-        onPressed: _showAddServiceModal,
-      ),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -538,7 +288,7 @@ class _NearbyServicesScreenState extends State<NearbyServicesScreen> {
             ),
             const SizedBox(height: 6),
 
-            // Leaflet Map Container (100% Working Tile Map)
+            // Leaflet Map Container (100% Working Tile Map - White Theme)
             Container(
               height: 220,
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -564,13 +314,14 @@ class _NearbyServicesScreenState extends State<NearbyServicesScreen> {
                     ),
                     children: [
                       TileLayer(
-                        urlTemplate: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+                        urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
                         subdomains: const ['a', 'b', 'c', 'd'],
                         userAgentPackageName: 'com.warimitra.app',
                       ),
                       MarkerLayer(markers: mapMarkers),
                     ],
                   ),
+
 
                   // Top Live Status Badge
                   Positioned(

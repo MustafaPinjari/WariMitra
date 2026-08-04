@@ -56,7 +56,8 @@ class _LostFoundScreenState extends State<LostFoundScreen> {
         'description': _descController.text.trim(),
         'location': _locationController.text.trim(),
         'contact_phone': _contactController.text.trim(),
-        'image_url': _selectedImageName != null ? 'https://dummyimage.com/600x400/00bcd4/ffffff&text=$_selectedImageName' : '',
+        'image_url': _selectedImageName ?? '',
+
       });
       _titleController.clear();
       _locationController.clear();

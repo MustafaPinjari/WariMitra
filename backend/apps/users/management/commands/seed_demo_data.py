@@ -211,34 +211,101 @@ class Command(BaseCommand):
         # -- 3. Heritage Saints & Abhangs --
         self.stdout.write("[+] Creating Heritage Saints & Abhangs...")
         from apps.heritage.models import Saint, Abhang, PilgrimageMilestone
+
         dnyaneshwar, _ = Saint.objects.get_or_create(
             name="Sant Dnyaneshwar Maharaj",
             defaults={
-                "marathi_name": "संत ज्ञानेश्वर महाराज",
+                "marathi_name": "संत ज्ञानेश्वर महाराज (माउली)",
                 "title": "Mauli",
-                "era": "1275 – 1296 CE",
-                "biography": "Patron saint of the Wari pilgrimage, author of Dnyaneshwari.",
+                "era": "1275 – 1296 CE • Alandi",
+                "biography": "Patron saint of the Wari pilgrimage, composer of Dnyaneshwari, Pasaydan and timeless Abhangs.",
+                "image_url": "https://images.unsplash.com/photo-1544717305-2782549b5136?w=400&q=80",
             }
         )
         tukaram, _ = Saint.objects.get_or_create(
             name="Sant Tukaram Maharaj",
             defaults={
-                "marathi_name": "संत तुकाराम महाराज",
+                "marathi_name": "संत तुकाराम महाराज (जगद्गुरु)",
                 "title": "Jagadguru",
-                "era": "1598 – 1650 CE",
-                "biography": "Greatest Abhang poet saint of Dehu, Maharashtra.",
+                "era": "1598 – 1650 CE • Dehu",
+                "biography": "Greatest Varkari poet saint of Dehu, celebrated for his soulful Abhang Gatha.",
+                "image_url": "https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?w=400&q=80",
+            }
+        )
+        eknath, _ = Saint.objects.get_or_create(
+            name="Sant Eknath Maharaj",
+            defaults={
+                "marathi_name": "संत एकनाथ महाराज",
+                "title": "Eknath Maharaj",
+                "era": "1533 – 1599 CE • Paithan",
+                "biography": "Prominent Marathi saint, scholar and poet who composed Eknathi Bhagavata and Bharud.",
+                "image_url": "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=400&q=80",
             }
         )
 
-        Abhang.objects.get_or_create(
-            title="Rupe Sunder Sawala",
-            defaults={
+        abhang_data = [
+            {
                 "saint": dnyaneshwar,
-                "marathi_title": "रूप सुंदर सावळा तो हा",
-                "lyrics": "रूप सुंदर सावळा तो हा विठ्ठल बरवा। तो हा विठ्ठल बरवा।",
-                "translation": "Beautiful is the enchanting dark complexion of Lord Vitthal.",
-            }
-        )
+                "title": "Pasaydan",
+                "marathi_title": "पसायदान (आता विश्वात्मके देवे)",
+                "artist": "Lata Mangeshkar",
+                "category": "Pasaydan",
+                "lyrics": "आता विश्वात्मके देवे। येणे वाग्यज्ञाने तोषावे।\nतोषिोनि मज द्यावे। पसायदान हे॥\nजे खळांची व्यंकटी सांडो। तया सत्कर्मी रती वाढो।\nभूतां परस्परे पडो। मैत्र जिवांचे॥",
+                "translation": "May the Divine Being of the Cosmos be pleased with this literary sacrifice and grant me this boon: May the evil impulses of sinners dissolve, may desire for good deeds grow, and may all living beings develop unconditional friendship.",
+                "audio_url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+                "duration": "04:15",
+            },
+            {
+                "saint": dnyaneshwar,
+                "title": "Rupe Sunder Sawala",
+                "marathi_title": "रूप सुंदर सावळा तो हा विठ्ठल बरवा",
+                "artist": "Pandit Bhimsen Joshi",
+                "category": "Abhang",
+                "lyrics": "रूप सुंदर सावळा तो हा विठ्ठल बरवा।\nतो हा विठ्ठल बरवा॥\nतो हा विठ्ठल बरवा। विठ्ठल विठ्ठल जय हरि विठ्ठल॥\nसावळे सुंदर रूप मनोहर। राही रखुमाईचा वर विठ्ठल॥",
+                "translation": "Beautiful and enchanting is the dark-complexioned Vitthal, the lord of Rakhumai, who steals the hearts of all devotees.",
+                "audio_url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+                "duration": "03:45",
+            },
+            {
+                "saint": tukaram,
+                "title": "Vrikshavalli Amha Soyare",
+                "marathi_title": "वृक्षवल्ली आम्हा सोयरी वनचरे",
+                "artist": "Kishori Amonkar",
+                "category": "Abhang",
+                "lyrics": "वृक्षवल्ली आम्हा सोयरी वनचरे।\nपक्षी ही सुस्वरे आळविती॥\nयेणे सुखे रुचे एकांताचा वास।\nनाही गुणदोष अंगी येत॥",
+                "translation": "The trees and creepers are our kinsmen, and the wild beasts and birds sing with sweet harmony. Living in communion with nature brings blissful solitude free from all flaws.",
+                "audio_url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+                "duration": "05:10",
+            },
+            {
+                "saint": tukaram,
+                "title": "Anandache Dohi Anand Taranga",
+                "marathi_title": "आनंदाचे डोही आनंद तरंग",
+                "artist": "Pandit Jasraj",
+                "category": "Haripath",
+                "lyrics": "आनंदाचे डोही आनंद तरंग।\nआनंदचि अंग आपुलिया॥\nकाय सांगो सुख झालेिया ठाया।\nविठ्ठल विठ्ठल नामाचा गजर॥",
+                "translation": "In the ocean of supreme bliss, waves of joy ripple continuously, transforming every aspect of our existence as we chant the divine name of Vitthal.",
+                "audio_url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+                "duration": "03:50",
+            },
+            {
+                "saint": eknath,
+                "title": "Omkar Swarupa",
+                "marathi_title": "ॐकार स्वरूपा सद्गुरू समर्था",
+                "artist": "Suresh Wadkar",
+                "category": "Bhajan",
+                "lyrics": "ॐकार स्वरूपा सद्गुरू समर्था।\nअनाथाच्या नाथा तुज नमो॥\nतुज नमो तुज नमो तुज नमो॥\nअगाध महिमा तुझा स्वामीराजा॥",
+                "translation": "O divine Master, embodiment of the primordial sound Omkar, protector of the helpless, I bow down to your endless grace and glory.",
+                "audio_url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
+                "duration": "04:30",
+            },
+        ]
+
+        for item in abhang_data:
+            Abhang.objects.update_or_create(
+                title=item["title"],
+                defaults=item
+            )
 
         PilgrimageMilestone.objects.get_or_create(
             name="Alandi Sanctuary",
@@ -250,6 +317,7 @@ class Command(BaseCommand):
                 "day_number": 1,
             }
         )
+
 
         # -- 4. Lost & Found Items --
         self.stdout.write("[+] Creating Digital Lost & Found records...")

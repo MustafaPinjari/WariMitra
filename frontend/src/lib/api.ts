@@ -104,9 +104,17 @@ export const pilgrimService = {
 // Vari Heritage & Abhang Service
 export const heritageService = {
   getSaints: () => api.get('/heritage/saints/'),
-  getAbhangs: () => api.get('/heritage/abhangs/'),
+  createSaint: (data: any) => api.post('/heritage/saints/', data),
+  getAbhangs: (params?: any) => api.get('/heritage/abhangs/', { params }),
+  createAbhang: (data: any) => api.post('/heritage/abhangs/', data),
+  updateAbhang: (id: number, data: any) => api.put(`/heritage/abhangs/${id}/`, data),
+  deleteAbhang: (id: number) => api.delete(`/heritage/abhangs/${id}/`),
+  uploadFile: (formData: FormData) => api.post('/heritage/upload/', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
   getMilestones: () => api.get('/heritage/milestones/'),
 };
+
 
 // Digital Lost & Found Service
 export const lostFoundService = {

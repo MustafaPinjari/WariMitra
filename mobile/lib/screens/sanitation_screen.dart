@@ -27,82 +27,6 @@ class _SanitationScreenState extends State<SanitationScreen> with SingleTickerPr
   final MapController _mapController = MapController();
   Map<String, dynamic>? _selectedItem;
 
-  final List<Map<String, dynamic>> _fallbackToilets = [
-    {
-      'id': '1',
-      'name': 'Alandi Sector 1 Bio-Toilet Complex',
-      'location': 'Alandi Chowk, Sector 1, Pune',
-      'gender_type': 'Unisex',
-      'cleanliness_score': 92,
-      'is_water_available': true,
-      'latitude': 18.6824,
-      'longitude': 73.8973,
-    },
-    {
-      'id': '2',
-      'name': 'Camp Alpha Mobile Restroom Trailer',
-      'location': 'Gate 3, Palkhi Grounds, Alandi',
-      'gender_type': 'Accessible',
-      'cleanliness_score': 88,
-      'is_water_available': true,
-      'latitude': 18.6721,
-      'longitude': 73.8889,
-    },
-    {
-      'id': '3',
-      'name': 'Hadapsar Gadital Sanitation Hub',
-      'location': 'Hadapsar Gadital Junction, Pune',
-      'gender_type': 'Unisex',
-      'cleanliness_score': 85,
-      'is_water_available': true,
-      'latitude': 18.5020,
-      'longitude': 73.9280,
-    },
-    {
-      'id': '4',
-      'name': 'Dive Ghat Emergency Mobile Toilets',
-      'location': 'Dive Ghat Slope Corridor',
-      'gender_type': 'Unisex',
-      'cleanliness_score': 95,
-      'is_water_available': true,
-      'latitude': 18.3444,
-      'longitude': 74.0305,
-    },
-    {
-      'id': '5',
-      'name': 'Saswad Bus Stand Sanitation Complex',
-      'location': 'Near Saswad Bus Stand, Saswad',
-      'gender_type': 'Unisex',
-      'cleanliness_score': 78,
-      'is_water_available': true,
-      'latitude': 18.3450,
-      'longitude': 74.0300,
-    },
-  ];
-
-  final List<Map<String, dynamic>> _fallbackWasteReports = [
-    {
-      'id': 'w1',
-      'location_name': 'Alandi Gate 2 Pilgrimage Path',
-      'waste_type': 'Overflowing Bin',
-      'description': 'Plastic bottles and paper waste overflowing near tea stalls.',
-      'status': 'PENDING',
-      'latitude': 18.6750,
-      'longitude': 73.8920,
-      'image_url': '',
-    },
-    {
-      'id': 'w2',
-      'location_name': 'Saswad Halt Grounds Sector B',
-      'waste_type': 'Plastic Waste',
-      'description': 'Accumulation of disposable food packets after lunch distribution.',
-      'status': 'CLEANING_DISPATCHED',
-      'latitude': 18.3430,
-      'longitude': 74.0290,
-      'image_url': '',
-    },
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -161,18 +85,19 @@ class _SanitationScreenState extends State<SanitationScreen> with SingleTickerPr
       }).toList();
 
       setState(() {
-        _toilets = parsedToilets.isNotEmpty ? parsedToilets : _fallbackToilets;
-        _wasteReports = parsedWaste.isNotEmpty ? parsedWaste : _fallbackWasteReports;
+        _toilets = parsedToilets;
+        _wasteReports = parsedWaste;
         _isLoading = false;
       });
     } catch (_) {
       setState(() {
-        _toilets = _fallbackToilets;
-        _wasteReports = _fallbackWasteReports;
+        _toilets = [];
+        _wasteReports = [];
         _isLoading = false;
       });
     }
   }
+
 
   String _calculateDistance(double targetLat, double targetLng) {
     if (_currentPosition == null) return 'Nearby';
