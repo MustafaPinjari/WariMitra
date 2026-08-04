@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import { LayoutDashboard, AlertTriangle, Users, Tent, Shield, Activity, HeartHandshake, ChevronRight, BookOpen, Search, Trash2 } from 'lucide-react';
+import { LayoutDashboard, AlertTriangle, Users, Tent, Shield, Activity, HeartHandshake, ChevronRight, BookOpen, Search, Trash2, MapPin } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAccessibility } from '@/components/providers/AccessibilityProvider';
 
@@ -14,6 +14,7 @@ export default function Sidebar() {
 
   const allNavItems = [
     { href: '/', icon: LayoutDashboard, label: 'Overview', marathi: 'मुख्य नियंत्रण', color: '#E85D04', roles: ['GOVERNMENT', 'MEDICAL', 'POLICE', 'NGO', 'TEMPLE', 'VOLUNTEER', 'PILGRIM'] },
+    { href: '/services', icon: MapPin, label: 'Nearby Services', marathi: 'नजीकच्या सुविधा', color: '#F97316', roles: ['GOVERNMENT', 'MEDICAL', 'POLICE', 'NGO', 'TEMPLE', 'VOLUNTEER', 'PILGRIM'] },
     { href: '/sos', icon: AlertTriangle, label: 'SOS Emergencies', marathi: 'आणीबाणी मदतीस या', color: '#EF4444', roles: ['GOVERNMENT', 'MEDICAL', 'POLICE', 'NGO', 'TEMPLE', 'VOLUNTEER', 'PILGRIM'] },
     { href: '/crowd', icon: Users, label: 'Crowd Intel', marathi: 'गर्दी व रस्ता नकाशा', color: '#3B82F6', roles: ['GOVERNMENT', 'POLICE', 'VOLUNTEER', 'NGO', 'PILGRIM', 'TEMPLE'] },
     { href: '/medical', icon: Activity, label: 'Medical Ops', marathi: 'वैद्यकीय शिबीर व रुग्णवाहिका', color: '#10B981', roles: ['GOVERNMENT', 'MEDICAL', 'VOLUNTEER', 'PILGRIM'] },

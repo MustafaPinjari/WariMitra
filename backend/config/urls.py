@@ -17,6 +17,7 @@ urlpatterns = [
     path('api/v1/lost-found/', include('apps.lost_found.urls')),
     path('api/v1/sanitation/', include('apps.sanitation.urls')),
     path('api/v1/missing-person/', include('apps.missing_person.urls')),
+    path('api/v1/maps/', include('apps.maps.urls')),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
 ]
