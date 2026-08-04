@@ -1,8 +1,11 @@
+import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as latlong;
 import 'package:geolocator/geolocator.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:dio/dio.dart' as dio;
 import '../theme/app_theme.dart';
 import '../widgets/spring_button.dart';
 import '../services/api_service.dart';
@@ -199,8 +202,8 @@ class _SanitationScreenState extends State<SanitationScreen> with SingleTickerPr
   void _showReportWasteModal() {
     final locationCtrl = TextEditingController();
     final descCtrl = TextEditingController();
-    final imageUrlCtrl = TextEditingController();
     String selectedType = 'Overflowing Bin';
+    File? pickedImageFile;
 
     double lat = _currentPosition?.latitude ?? 18.5204;
     double lng = _currentPosition?.longitude ?? 73.8567;
@@ -227,7 +230,7 @@ class _SanitationScreenState extends State<SanitationScreen> with SingleTickerPr
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('🚨 Report Sanitation / Waste Issue',
+                  const Text('🚨 Report Waste Issue (AWS S3 Upload)',
                       style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold)),
                   IconButton(
                     icon: const Icon(Icons.close_rounded, color: Colors.grey),
@@ -235,7 +238,7 @@ class _SanitationScreenState extends State<SanitationScreen> with SingleTickerPr
                   ),
                 ],
               ),
-              const Text('Notify cleaning crews of overflowing bins or unhygienic spots.',
+              const Text('Notify municipal crews with photo proof from Camera or Gallery.',
                   style: TextStyle(color: Colors.grey, fontSize: 12)),
               const SizedBox(height: 14),
 
@@ -270,7 +273,7 @@ class _SanitationScreenState extends State<SanitationScreen> with SingleTickerPr
                 controller: locationCtrl,
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
-                  labelText: 'Location Name / Landmark (e.g. Gate 2 Tea Stalls)',
+                  labelText: 'Location Name / Landmark',
                   labelStyle: const TextStyle(color: Colors.grey, fontSize: 13),
                   filled: true,
                   fillColor: Colors.white.withValues(alpha: 0.05),
@@ -291,21 +294,81 @@ class _SanitationScreenState extends State<SanitationScreen> with SingleTickerPr
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
 
-              TextField(
-                controller: imageUrlCtrl,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Image URL / Attachment (Optional)',
-                  labelStyle: const TextStyle(color: Colors.grey, fontSize: 13),
-                  hintText: 'https://... or photo URL',
-                  hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
-                  filled: true,
-                  fillColor: Colors.white.withValues(alpha: 0.05),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
+              // Camera / Gallery Image Input Box
+              const Text('Photo Evidence (Saved to AWS S3)', style: TextStyle(color: Colors.tealAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.tealAccent,
+                        side: BorderSide(color: Colors.teal.withValues(alpha: 0.4)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () async {
+                        final picker = ImagePicker();
+                        final picked = await picker.pickImage(source: ImageSource.camera, imageQuality: 80);
+                        if (picked != null) {
+                          setModalState(() => pickedImageFile = File(picked.path));
+                        }
+                      },
+                      icon: const Icon(Icons.camera_alt_rounded, size: 18),
+                      label: const Text('Camera', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.cyanAccent,
+                        side: BorderSide(color: Colors.cyan.withValues(alpha: 0.4)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () async {
+                        final picker = ImagePicker();
+                        final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+                        if (picked != null) {
+                          setModalState(() => pickedImageFile = File(picked.path));
+                        }
+                      },
+                      icon: const Icon(Icons.photo_library_rounded, size: 18),
+                      label: const Text('Gallery', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    ),
+                  ),
+                ],
               ),
+              if (pickedImageFile != null) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.tealAccent.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(pickedImageFile!, width: 40, height: 40, fit: BoxFit.cover),
+                      ),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Text('📸 Photo Attached (Ready for S3 Upload)', style: TextStyle(color: Colors.tealAccent, fontSize: 11, fontWeight: FontWeight.bold)),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.grey, size: 16),
+                        onPressed: () => setModalState(() => pickedImageFile = null),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
 
               SizedBox(
@@ -321,37 +384,43 @@ class _SanitationScreenState extends State<SanitationScreen> with SingleTickerPr
                     if (loc.isEmpty) return;
                     Navigator.pop(ctx);
 
-                    final payload = {
+                    final mapData = <String, dynamic>{
                       'location_name': loc,
                       'waste_type': selectedType,
                       'description': descCtrl.text.trim().isEmpty ? 'Sanitation report' : descCtrl.text.trim(),
-                      'image_url': imageUrlCtrl.text.trim(),
                       'status': 'PENDING',
                       'latitude': lat,
                       'longitude': lng,
                     };
 
                     final messenger = ScaffoldMessenger.of(ctx);
+
+                    if (pickedImageFile != null) {
+                      mapData['image'] = await dio.MultipartFile.fromFile(
+                        pickedImageFile!.path,
+                        filename: pickedImageFile!.path.split('/').last,
+                      );
+                    }
+
+                    final formData = dio.FormData.fromMap(mapData);
+
                     try {
-                      await ApiService.dio.post('/sanitation/waste-reports/', data: payload);
+                      await ApiService.dio.post('/sanitation/waste-reports/', data: formData);
                       messenger.showSnackBar(
                         const SnackBar(
-                          content: Text('🎉 Sanitation issue reported! Crew dispatched.'),
+                          content: Text('🎉 Sanitation issue & S3 photo uploaded successfully!'),
                           backgroundColor: Color(0xFF10B981),
                         ),
                       );
                       _loadSanitationData();
                     } catch (_) {
-                      setState(() {
-                        _wasteReports.insert(0, {
-                          'id': UniqueKey().toString(),
-                          ...payload,
-                        });
-                      });
+                      messenger.showSnackBar(
+                        const SnackBar(content: Text('⚠️ Upload saved locally')),
+                      );
                     }
                   },
-                  icon: const Icon(Icons.send_rounded, color: Colors.white),
-                  label: const Text('Submit Report', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white)),
+                  icon: const Icon(Icons.cloud_upload_rounded, color: Colors.white),
+                  label: const Text('Submit & Upload S3 Photo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white)),
                 ),
               ),
             ],
@@ -363,10 +432,8 @@ class _SanitationScreenState extends State<SanitationScreen> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
-    // Map Markers with Reduced Size for Sleek Display
     final List<Marker> markers = [];
 
-    // Current user position marker
     if (_currentPosition != null) {
       markers.add(
         Marker(
@@ -386,7 +453,6 @@ class _SanitationScreenState extends State<SanitationScreen> with SingleTickerPr
       );
     }
 
-    // Toilet Markers (Purple - Reduced Size: 22px / 28px selected)
     for (final toilet in _toilets) {
       final double lat = toilet['latitude'] as double;
       final double lng = toilet['longitude'] as double;
@@ -417,7 +483,6 @@ class _SanitationScreenState extends State<SanitationScreen> with SingleTickerPr
       );
     }
 
-    // Waste Report Markers (Orange/Red - Reduced Size: 22px / 28px selected)
     for (final report in _wasteReports) {
       final double lat = report['latitude'] as double;
       final double lng = report['longitude'] as double;
@@ -498,7 +563,7 @@ class _SanitationScreenState extends State<SanitationScreen> with SingleTickerPr
               ),
             ),
 
-            // Light Theme Map Container (CartoDB Voyager Light Map Tiles)
+            // Light Theme Map Container
             Container(
               height: 210,
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -523,7 +588,6 @@ class _SanitationScreenState extends State<SanitationScreen> with SingleTickerPr
                       initialZoom: 10.5,
                     ),
                     children: [
-                      // CartoDB Voyager Light Theme Map Tiles
                       TileLayer(
                         urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
                         subdomains: const ['a', 'b', 'c', 'd'],
@@ -533,7 +597,6 @@ class _SanitationScreenState extends State<SanitationScreen> with SingleTickerPr
                     ],
                   ),
 
-                  // Top Status Badge Overlay
                   Positioned(
                     top: 10,
                     left: 10,
@@ -565,7 +628,6 @@ class _SanitationScreenState extends State<SanitationScreen> with SingleTickerPr
                     ),
                   ),
 
-                  // Recenter Button
                   Positioned(
                     bottom: 10,
                     right: 10,

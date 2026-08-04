@@ -1,9 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:dio/dio.dart' as dio;
 import '../widgets/spring_button.dart';
 import '../services/api_service.dart';
 
 class MissingPersonScreen extends StatefulWidget {
-  const MissingPersonScreen({Key? key}) : super(key: key);
+  const MissingPersonScreen({super.key});
 
   @override
   State<MissingPersonScreen> createState() => _MissingPersonScreenState();
@@ -17,6 +20,7 @@ class _MissingPersonScreenState extends State<MissingPersonScreen> {
   final _contactController = TextEditingController();
   String _category = 'Child';
   bool _isLoading = false;
+  File? _selectedPhotoFile;
 
   // Existing reports from backend
   List<dynamic> _reports = [];
@@ -40,7 +44,15 @@ class _MissingPersonScreenState extends State<MissingPersonScreen> {
     }
   }
 
-  String? _selectedImageName;
+  Future<void> _pickPhoto(ImageSource source) async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: source, imageQuality: 80);
+    if (picked != null) {
+      setState(() {
+        _selectedPhotoFile = File(picked.path);
+      });
+    }
+  }
 
   Future<void> _submitReport() async {
     if (_nameController.text.trim().isEmpty) {
@@ -52,32 +64,44 @@ class _MissingPersonScreenState extends State<MissingPersonScreen> {
 
     setState(() => _isLoading = true);
     try {
-      await ApiService.dio.post('/missing-person/reports/', data: {
+      final mapData = <String, dynamic>{
         'name': _nameController.text.trim(),
         'age': int.tryParse(_ageController.text.trim()) ?? 0,
         'category': _category,
         'description': _descController.text.trim(),
         'last_seen_location': _locationController.text.trim(),
         'contact_mobile': _contactController.text.trim(),
-        'photo_url': _selectedImageName != null ? 'https://dummyimage.com/600x400/f97316/ffffff&text=$_selectedImageName' : '',
-      });
+        'status': 'Searching',
+      };
+
+      if (_selectedPhotoFile != null) {
+        mapData['photo'] = await dio.MultipartFile.fromFile(
+          _selectedPhotoFile!.path,
+          filename: _selectedPhotoFile!.path.split('/').last,
+        );
+      }
+
+      final formData = dio.FormData.fromMap(mapData);
+      await ApiService.dio.post('/missing-person/reports/', data: formData);
+
       _nameController.clear();
       _ageController.clear();
       _descController.clear();
       _locationController.clear();
       _contactController.clear();
       setState(() {
-        _selectedImageName = null;
+        _selectedPhotoFile = null;
         _isLoading = false;
       });
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('⚡ Missing Report Created! Volunteers & Police Notified.'),
+            content: Text('⚡ Missing Report & AWS S3 Photo Uploaded! Alert sent.'),
             backgroundColor: Colors.orange,
           ),
         );
-        _loadReports(); // Refresh list
+        _loadReports();
       }
     } catch (e) {
       setState(() => _isLoading = false);
@@ -120,7 +144,7 @@ class _MissingPersonScreenState extends State<MissingPersonScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Missing Person Search', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
-                      Text('Instant Alert to Police & Volunteers', style: TextStyle(fontSize: 12, color: Colors.redAccent)),
+                      Text('Instant Alert to Police & Volunteers (S3 Upload)', style: TextStyle(fontSize: 12, color: Colors.redAccent)),
                     ],
                   ),
                 ],
@@ -143,7 +167,7 @@ class _MissingPersonScreenState extends State<MissingPersonScreen> {
 
                     _buildInputLabel('Person Category'),
                     DropdownButtonFormField<String>(
-                      value: _category,
+                      initialValue: _category,
                       dropdownColor: const Color(0xFF1E222D),
                       style: const TextStyle(color: Colors.white),
                       decoration: _buildInputDecoration(),
@@ -195,17 +219,45 @@ class _MissingPersonScreenState extends State<MissingPersonScreen> {
                       style: const TextStyle(color: Colors.white),
                       decoration: _buildInputDecoration(hint: '+91 98765 43210'),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
 
-                    // Dummy Photo Attachment Button
-                    InkWell(
-                      onTap: () {
-                        setState(() {
-                          _selectedImageName = 'person_photo_${DateTime.now().millisecondsSinceEpoch}.jpg';
-                        });
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    // Camera & Gallery Image Pickers
+                    _buildInputLabel('Upload Photo (Saved to AWS S3)'),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.orange,
+                              side: BorderSide(color: Colors.orange.withValues(alpha: 0.4)),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: () => _pickPhoto(ImageSource.camera),
+                            icon: const Icon(Icons.camera_alt_rounded, size: 18),
+                            label: const Text('Camera', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.cyanAccent,
+                              side: BorderSide(color: Colors.cyan.withValues(alpha: 0.4)),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: () => _pickPhoto(ImageSource.gallery),
+                            icon: const Icon(Icons.photo_library_rounded, size: 18),
+                            label: const Text('Gallery', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_selectedPhotoFile != null) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.05),
                           borderRadius: BorderRadius.circular(12),
@@ -213,20 +265,22 @@ class _MissingPersonScreenState extends State<MissingPersonScreen> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.add_a_photo_rounded, color: Colors.orange, size: 18),
-                            const SizedBox(width: 8),
-                            Text(
-                              _selectedImageName != null ? '📸 Attached: $_selectedImageName' : 'फोटो जोडा (Upload Photo - Optional)',
-                              style: TextStyle(
-                                color: _selectedImageName != null ? Colors.orangeAccent : Colors.white70,
-                                fontSize: 12,
-                                fontWeight: _selectedImageName != null ? FontWeight.bold : FontWeight.normal,
-                              ),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.file(_selectedPhotoFile!, width: 40, height: 40, fit: BoxFit.cover),
+                            ),
+                            const SizedBox(width: 10),
+                            const Expanded(
+                              child: Text('📸 Photo Attached (Ready for S3 Upload)', style: TextStyle(color: Colors.orangeAccent, fontSize: 11, fontWeight: FontWeight.bold)),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close, color: Colors.grey, size: 16),
+                              onPressed: () => setState(() => _selectedPhotoFile = null),
                             ),
                           ],
                         ),
                       ),
-                    ),
+                    ],
                     const SizedBox(height: 20),
 
                     SpringButton(
@@ -242,7 +296,7 @@ class _MissingPersonScreenState extends State<MissingPersonScreen> {
                         child: Center(
                           child: _isLoading
                               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                              : const Text('Broadcast Missing Report', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
+                              : const Text('Broadcast Missing Report & Upload Photo', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
                         ),
                       ),
                     ),
@@ -286,7 +340,7 @@ class _MissingPersonScreenState extends State<MissingPersonScreen> {
                   itemBuilder: (context, index) {
                     final item = _reports[index];
                     final String status = item['status']?.toString() ?? 'Searching';
-                    final bool hasPhoto = item['photo_url'] != null && item['photo_url'].toString().isNotEmpty;
+                    final String photoUrl = item['photo']?.toString() ?? (item['photo_url']?.toString() ?? '');
 
                     Color statusColor = Colors.orange;
                     if (status == 'Found') statusColor = Colors.greenAccent;
@@ -308,7 +362,7 @@ class _MissingPersonScreenState extends State<MissingPersonScreen> {
                               CircleAvatar(
                                 backgroundColor: statusColor.withValues(alpha: 0.2),
                                 child: Icon(
-                                  hasPhoto ? Icons.photo_camera_rounded : Icons.person_search_rounded,
+                                  photoUrl.isNotEmpty ? Icons.photo_camera_rounded : Icons.person_search_rounded,
                                   color: statusColor,
                                 ),
                               ),
@@ -325,8 +379,8 @@ class _MissingPersonScreenState extends State<MissingPersonScreen> {
                                       '${item['category']} • Age: ${item['age'] ?? 'N/A'}',
                                       style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12),
                                     ),
-                                    if (hasPhoto)
-                                      const Text('📸 Photo attached', style: TextStyle(color: Colors.orangeAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+                                    if (photoUrl.isNotEmpty)
+                                      const Text('📸 Photo attached (S3)', style: TextStyle(color: Colors.orangeAccent, fontSize: 10, fontWeight: FontWeight.bold)),
                                   ],
                                 ),
                               ),

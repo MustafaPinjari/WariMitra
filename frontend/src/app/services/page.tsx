@@ -138,6 +138,7 @@ export default function NearbyServicesPage() {
   const mapRef = useRef<HTMLDivElement>(null);
   const googleMapObj = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
+  const clickMarkerRef = useRef<any>(null);
 
   const [points, setPoints] = useState<ServicePoint[]>(INITIAL_FALLBACK_POINTS);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -196,6 +197,39 @@ export default function NearbyServicesPage() {
     return found ? found.color : '#F97316';
   };
 
+
+  // Helper to reliably retrieve Google Maps classes
+  const getGoogleMapsClasses = async () => {
+    const g = (window as any).google;
+    if (g?.maps?.Marker && g?.maps?.InfoWindow) {
+      return {
+        Marker: g.maps.Marker,
+        InfoWindow: g.maps.InfoWindow,
+        LatLngBounds: g.maps.LatLngBounds,
+        Size: g.maps.Size,
+        Point: g.maps.Point,
+      };
+    }
+
+    const mapsLib = await importLibrary('maps') as any;
+    let MarkerClass = mapsLib.Marker || g?.maps?.Marker;
+
+    if (!MarkerClass) {
+      try {
+        const markerLib = await importLibrary('marker') as any;
+        MarkerClass = markerLib.Marker || markerLib.AdvancedMarkerElement || g?.maps?.Marker;
+      } catch (e) {}
+    }
+
+    return {
+      Marker: MarkerClass || g?.maps?.Marker,
+      InfoWindow: mapsLib.InfoWindow || g?.maps?.InfoWindow,
+      LatLngBounds: mapsLib.LatLngBounds || g?.maps?.LatLngBounds,
+      Size: mapsLib.Size || g?.maps?.Size,
+      Point: mapsLib.Point || g?.maps?.Point,
+    };
+  };
+
   // Initialize Map & Markers
   useEffect(() => {
     const initMap = async () => {
@@ -219,17 +253,62 @@ export default function NearbyServicesPage() {
 
         googleMapObj.current = map;
 
-        // Click map to pick location
-        map.addListener('click', (e: any) => {
-          const clickedLat = e.latLng.lat();
-          const clickedLng = e.latLng.lng();
+        // Click map to pick location and drop a red selection pin!
+        map.addListener('click', async (e: any) => {
+          const clickedLat = Number(e.latLng.lat().toFixed(5));
+          const clickedLng = Number(e.latLng.lng().toFixed(5));
+
           setNewPoint(prev => ({
             ...prev,
-            latitude: Number(clickedLat.toFixed(5)),
-            longitude: Number(clickedLng.toFixed(5)),
-            address: `Point @ ${clickedLat.toFixed(4)}, ${clickedLng.toFixed(4)}`
+            latitude: clickedLat,
+            longitude: clickedLng,
+            address: `Point @ ${clickedLat}, ${clickedLng}`
           }));
-          showToast(`📍 Selected Coordinates: ${clickedLat.toFixed(4)}, ${clickedLng.toFixed(4)}`);
+
+          try {
+            const { Marker, InfoWindow } = await getGoogleMapsClasses();
+
+            if (clickMarkerRef.current) {
+              clickMarkerRef.current.setMap(null);
+            }
+
+            if (Marker) {
+              const clickPinSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="40" viewBox="0 0 32 40">
+                <path d="M16 0C7.16 0 0 7.16 0 16c0 12 16 24 16 24s16-12 16-24C32 7.16 24.84 0 16 0z" fill="#EF4444"/>
+                <circle cx="16" cy="16" r="8" fill="#FFFFFF"/>
+                <circle cx="16" cy="16" r="5" fill="#EF4444"/>
+              </svg>`;
+
+              const newMarker = new Marker({
+                position: { lat: clickedLat, lng: clickedLng },
+                map: googleMapObj.current,
+                title: `Selected Location Pin`,
+                icon: {
+                  url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(clickPinSvg),
+                }
+              });
+
+              if (InfoWindow) {
+                const infoWindow = new InfoWindow({
+                  content: `
+                    <div style="padding:8px; color:#0F172A; font-family:sans-serif; text-align:center;">
+                      <div style="font-weight:bold; font-size:12px; color:#EF4444; margin-bottom:4px;">📍 Selection Pin Dropped!</div>
+                      <div style="font-size:11px; color:#475569;">Lat: ${clickedLat}, Lng: ${clickedLng}</div>
+                      <div style="margin-top:6px; font-size:10px; font-weight:bold; color:#EA580C;">Click "+ Add Service Pin" to publish this point!</div>
+                    </div>
+                  `
+                });
+
+                infoWindow.open(googleMapObj.current, newMarker);
+              }
+              clickMarkerRef.current = newMarker;
+            }
+
+          } catch (err) {
+            console.warn('Error creating click pin:', err);
+          }
+
+          showToast(`📍 Pin Dropped @ ${clickedLat}, ${clickedLng}`);
         });
 
       } catch (err) {
@@ -240,7 +319,7 @@ export default function NearbyServicesPage() {
     initMap();
   }, []);
 
-  // Place markers on Google Map
+  // Place markers on Google Map & Fit Bounds
   useEffect(() => {
     const updateMarkers = async () => {
       if (!googleMapObj.current) return;
@@ -250,9 +329,15 @@ export default function NearbyServicesPage() {
       markersRef.current = [];
 
       try {
-        const { Marker, InfoWindow } = await importLibrary('maps') as any;
+        const { Marker, InfoWindow, LatLngBounds } = await getGoogleMapsClasses();
+        const bounds = LatLngBounds ? new LatLngBounds() : null;
+        let hasPoints = false;
+
+        if (!Marker) return;
 
         filteredPoints.forEach((p) => {
+          hasPoints = true;
+          if (bounds) bounds.extend({ lat: p.latitude, lng: p.longitude });
           const color = getCategoryColor(p.category);
 
           const marker = new Marker({
@@ -261,28 +346,35 @@ export default function NearbyServicesPage() {
             title: `${p.name} (${p.category})`,
           });
 
-          const infoWindow = new InfoWindow({
-            content: `
-              <div style="padding:10px; color:#0F172A; font-family:sans-serif; max-width:220px;">
-                <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
-                  <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:${color};"></span>
-                  <span style="font-weight:800; font-size:11px; color:${color}; text-transform:uppercase;">${p.category}</span>
+          if (InfoWindow) {
+            const infoWindow = new InfoWindow({
+              content: `
+                <div style="padding:10px; color:#0F172A; font-family:sans-serif; max-width:220px;">
+                  <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                    <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:${color};"></span>
+                    <span style="font-weight:800; font-size:11px; color:${color}; text-transform:uppercase;">${p.category}</span>
+                  </div>
+                  <h4 style="margin:0 0 4px 0; font-weight:bold; font-size:13px; color:#0F172A;">${p.name}</h4>
+                  <p style="margin:0 0 6px 0; font-size:11px; color:#475569;">${p.details}</p>
+                  <div style="font-size:10px; color:#0284C7; font-weight:bold;">${p.capacity_info || 'Operational'}</div>
                 </div>
-                <h4 style="margin:0 0 4px 0; font-weight:bold; font-size:13px; color:#0F172A;">${p.name}</h4>
-                <p style="margin:0 0 6px 0; font-size:11px; color:#475569;">${p.details}</p>
-                <div style="font-size:10px; color:#0284C7; font-weight:bold;">${p.capacity_info || 'Operational'}</div>
-              </div>
-            `
-          });
+              `
+            });
 
-          marker.addListener('click', () => {
-            setSelectedPoint(p);
-            infoWindow.open(googleMapObj.current, marker);
-            googleMapObj.current.panTo({ lat: p.latitude, lng: p.longitude });
-          });
+            marker.addListener('click', () => {
+              setSelectedPoint(p);
+              infoWindow.open(googleMapObj.current, marker);
+              googleMapObj.current.panTo({ lat: p.latitude, lng: p.longitude });
+            });
+          }
 
           markersRef.current.push(marker);
         });
+
+        if (hasPoints && bounds && googleMapObj.current) {
+          googleMapObj.current.fitBounds(bounds);
+        }
+
       } catch (err) {
         console.warn('Error placing markers:', err);
       }

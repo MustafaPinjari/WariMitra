@@ -19,7 +19,8 @@ import {
   Clock, 
   Sparkles, 
   Check, 
-  Filter
+  Filter,
+  Maximize2
 } from 'lucide-react';
 import { setOptions, importLibrary } from '@googlemaps/js-api-loader';
 import { useAccessibility } from '@/components/providers/AccessibilityProvider';
@@ -51,15 +52,15 @@ interface WasteReport {
 }
 
 const LIGHT_MAP_STYLES = [
-  { elementType: "geometry", stylers: [{ color: "#f5f5f5" }] },
+  { elementType: "geometry", stylers: [{ color: "#f8fafc" }] },
   { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#616161" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#f5f5f5" }] },
-  { featureType: "administrative.land_parcel", elementType: "labels.text.fill", stylers: [{ color: "#bdbdbd" }] },
-  { featureType: "poi", elementType: "geometry", stylers: [{ color: "#eeeeee" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#475569" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#ffffff" }] },
+  { featureType: "administrative.land_parcel", elementType: "labels.text.fill", stylers: [{ color: "#cbd5e1" }] },
+  { featureType: "poi", elementType: "geometry", stylers: [{ color: "#f1f5f9" }] },
   { featureType: "road", elementType: "geometry", stylers: [{ color: "#ffffff" }] },
-  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#ffcc80" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#80deea" }] }
+  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#fed7aa" }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#bae6fd" }] }
 ];
 
 export default function SanitationPage() {
@@ -67,6 +68,7 @@ export default function SanitationPage() {
   const mapRef = useRef<HTMLDivElement>(null);
   const googleMapObj = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
+  const clickMarkerRef = useRef<any>(null);
 
   const [toilets, setToilets] = useState<PublicToilet[]>([]);
   const [wasteReports, setWasteReports] = useState<WasteReport[]>([]);
@@ -123,7 +125,39 @@ export default function SanitationPage() {
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  // Helper to reliably retrieve Google Maps classes
+  const getGoogleMapsClasses = async () => {
+    const g = (window as any).google;
+    if (g?.maps?.Marker && g?.maps?.InfoWindow) {
+      return {
+        Marker: g.maps.Marker,
+        InfoWindow: g.maps.InfoWindow,
+        LatLngBounds: g.maps.LatLngBounds,
+        Size: g.maps.Size,
+        Point: g.maps.Point,
+      };
+    }
+
+    const mapsLib = await importLibrary('maps') as any;
+    let MarkerClass = mapsLib.Marker || g?.maps?.Marker;
+
+    if (!MarkerClass) {
+      try {
+        const markerLib = await importLibrary('marker') as any;
+        MarkerClass = markerLib.Marker || markerLib.AdvancedMarkerElement || g?.maps?.Marker;
+      } catch (e) {}
+    }
+
+    return {
+      Marker: MarkerClass || g?.maps?.Marker,
+      InfoWindow: mapsLib.InfoWindow || g?.maps?.InfoWindow,
+      LatLngBounds: mapsLib.LatLngBounds || g?.maps?.LatLngBounds,
+      Size: mapsLib.Size || g?.maps?.Size,
+      Point: mapsLib.Point || g?.maps?.Point,
+    };
   };
 
   // Init Google Light Map
@@ -140,8 +174,8 @@ export default function SanitationPage() {
         if (!mapRef.current) return;
 
         const map = new Map(mapRef.current, {
-          center: { lat: 18.3444, lng: 74.0305 },
-          zoom: 9,
+          center: { lat: 18.5204, lng: 73.8567 },
+          zoom: 11,
           styles: LIGHT_MAP_STYLES, // Light Theme Map
           disableDefaultUI: true,
           zoomControl: true,
@@ -149,8 +183,8 @@ export default function SanitationPage() {
 
         googleMapObj.current = map;
 
-        // Click map to pick location
-        map.addListener('click', (e: any) => {
+        // Click map to pick location & drop a red selection pin!
+        map.addListener('click', async (e: any) => {
           const clickedLat = Number(e.latLng.lat().toFixed(5));
           const clickedLng = Number(e.latLng.lng().toFixed(5));
 
@@ -159,7 +193,50 @@ export default function SanitationPage() {
           setWasteLat(clickedLat);
           setWasteLng(clickedLng);
 
-          showToast(`📍 Selected Pin Coordinates: ${clickedLat}, ${clickedLng}`);
+          try {
+            const { Marker, InfoWindow } = await getGoogleMapsClasses();
+
+            if (clickMarkerRef.current) {
+              clickMarkerRef.current.setMap(null);
+            }
+
+            if (Marker) {
+              const clickPinSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="40" viewBox="0 0 32 40">
+                <path d="M16 0C7.16 0 0 7.16 0 16c0 12 16 24 16 24s16-12 16-24C32 7.16 24.84 0 16 0z" fill="#EF4444"/>
+                <circle cx="16" cy="16" r="8" fill="#FFFFFF"/>
+                <circle cx="16" cy="16" r="5" fill="#EF4444"/>
+              </svg>`;
+
+              const newMarker = new Marker({
+                position: { lat: clickedLat, lng: clickedLng },
+                map: googleMapObj.current,
+                title: `Selected Location Pin`,
+                icon: {
+                  url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(clickPinSvg),
+                }
+              });
+
+              if (InfoWindow) {
+                const infoWindow = new InfoWindow({
+                  content: `
+                    <div style="padding:8px; color:#0F172A; font-family:sans-serif; text-align:center;">
+                      <div style="font-weight:bold; font-size:12px; color:#EF4444; margin-bottom:4px;">📍 Selection Pin Dropped!</div>
+                      <div style="font-size:11px; color:#475569;">Lat: ${clickedLat}, Lng: ${clickedLng}</div>
+                      <div style="margin-top:6px; font-size:10px; font-weight:bold; color:#0D9488;">Click "+ Add Toilet" or "Report Waste" to save this location!</div>
+                    </div>
+                  `
+                });
+
+                infoWindow.open(googleMapObj.current, newMarker);
+              }
+              clickMarkerRef.current = newMarker;
+            }
+
+          } catch (err) {
+            console.warn('Error creating click pin:', err);
+          }
+
+          showToast(`📍 Pin Dropped @ ${clickedLat}, ${clickedLng}`);
         });
 
       } catch (err) {
@@ -170,7 +247,7 @@ export default function SanitationPage() {
     initMap();
   }, []);
 
-  // Update reduced pin markers on map
+  // Update reduced pin markers on map & fit bounds
   useEffect(() => {
     const updateMarkers = async () => {
       if (!googleMapObj.current) return;
@@ -179,11 +256,20 @@ export default function SanitationPage() {
       markersRef.current = [];
 
       try {
-        const { Marker, InfoWindow } = await importLibrary('maps') as any;
+        const { Marker, InfoWindow, LatLngBounds, Size, Point } = await getGoogleMapsClasses();
+        const bounds = LatLngBounds ? new LatLngBounds() : null;
+        let hasPoints = false;
+
+        const sizeObj = Size ? new Size(22, 28) : undefined;
+        const anchorObj = Point ? new Point(11, 28) : undefined;
+
+        if (!Marker) return;
 
         if (activeTab === 'TOILETS') {
           toilets.forEach((t) => {
-            // Sleek reduced pin icon for toilets
+            hasPoints = true;
+            if (bounds) bounds.extend({ lat: t.latitude, lng: t.longitude });
+
             const pinSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="30" viewBox="0 0 24 30">
               <path d="M12 0C5.37 0 0 5.37 0 12c0 9 12 18 12 18s12-9 12-18C24 5.37 18.63 0 12 0z" fill="#8B5CF6"/>
               <circle cx="12" cy="12" r="6" fill="#FFFFFF"/>
@@ -193,33 +279,37 @@ export default function SanitationPage() {
               position: { lat: t.latitude, lng: t.longitude },
               map: googleMapObj.current,
               title: t.name,
-              icon: {
+              icon: sizeObj && anchorObj ? {
                 url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(pinSvg),
-                scaledSize: new (window as any).google.maps.Size(22, 28),
-                anchor: new (window as any).google.maps.Point(11, 28),
-              }
+                scaledSize: sizeObj,
+                anchor: anchorObj,
+              } : undefined
             });
 
-            const infoWindow = new InfoWindow({
-              content: `
-                <div style="padding:8px; color:#0F172A; font-family:sans-serif; max-width:200px;">
-                  <h4 style="margin:0 0 4px 0; font-weight:bold; font-size:12px; color:#6B21A8;">🚽 ${t.name}</h4>
-                  <p style="margin:0 0 4px 0; font-size:11px; color:#475569;">${t.location}</p>
-                  <div style="font-size:10px; font-weight:bold; color:#059669;">${t.cleanliness_score}% Clean • ${t.gender_type}</div>
-                </div>
-              `
-            });
+            if (InfoWindow) {
+              const infoWindow = new InfoWindow({
+                content: `
+                  <div style="padding:8px; color:#0F172A; font-family:sans-serif; max-width:200px;">
+                    <h4 style="margin:0 0 4px 0; font-weight:bold; font-size:12px; color:#6B21A8;">🚽 ${t.name}</h4>
+                    <p style="margin:0 0 4px 0; font-size:11px; color:#475569;">${t.location}</p>
+                    <div style="font-size:10px; font-weight:bold; color:#059669;">${t.cleanliness_score}% Clean • ${t.gender_type}</div>
+                  </div>
+                `
+              });
 
-            marker.addListener('click', () => {
-              infoWindow.open(googleMapObj.current, marker);
-              googleMapObj.current.panTo({ lat: t.latitude, lng: t.longitude });
-            });
+              marker.addListener('click', () => {
+                infoWindow.open(googleMapObj.current, marker);
+                googleMapObj.current.panTo({ lat: t.latitude, lng: t.longitude });
+              });
+            }
 
             markersRef.current.push(marker);
           });
         } else {
           wasteReports.forEach((w) => {
-            // Sleek reduced pin icon for waste reports
+            hasPoints = true;
+            if (bounds) bounds.extend({ lat: w.latitude, lng: w.longitude });
+
             const pinColor = w.status === 'CLEANED' ? '#10B981' : w.status === 'CLEANING_DISPATCHED' ? '#3B82F6' : '#EF4444';
             const pinSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="30" viewBox="0 0 24 30">
               <path d="M12 0C5.37 0 0 5.37 0 12c0 9 12 18 12 18s12-9 12-18C24 5.37 18.63 0 12 0z" fill="${pinColor}"/>
@@ -230,30 +320,36 @@ export default function SanitationPage() {
               position: { lat: w.latitude, lng: w.longitude },
               map: googleMapObj.current,
               title: w.location_name,
-              icon: {
+              icon: sizeObj && anchorObj ? {
                 url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(pinSvg),
-                scaledSize: new (window as any).google.maps.Size(22, 28),
-                anchor: new (window as any).google.maps.Point(11, 28),
-              }
+                scaledSize: sizeObj,
+                anchor: anchorObj,
+              } : undefined
             });
 
-            const infoWindow = new InfoWindow({
-              content: `
-                <div style="padding:8px; color:#0F172A; font-family:sans-serif; max-width:200px;">
-                  <h4 style="margin:0 0 4px 0; font-weight:bold; font-size:12px; color:#B91C1C;">🚨 ${w.waste_type}</h4>
-                  <p style="margin:0 0 4px 0; font-size:11px; color:#475569;">${w.location_name}</p>
-                  <div style="font-size:10px; font-weight:bold; color:${pinColor};">${w.status}</div>
-                </div>
-              `
-            });
+            if (InfoWindow) {
+              const infoWindow = new InfoWindow({
+                content: `
+                  <div style="padding:8px; color:#0F172A; font-family:sans-serif; max-width:200px;">
+                    <h4 style="margin:0 0 4px 0; font-weight:bold; font-size:12px; color:#B91C1C;">🚨 ${w.waste_type}</h4>
+                    <p style="margin:0 0 4px 0; font-size:11px; color:#475569;">${w.location_name}</p>
+                    <div style="font-size:10px; font-weight:bold; color:${pinColor};">${w.status}</div>
+                  </div>
+                `
+              });
 
-            marker.addListener('click', () => {
-              infoWindow.open(googleMapObj.current, marker);
-              googleMapObj.current.panTo({ lat: w.latitude, lng: w.longitude });
-            });
+              marker.addListener('click', () => {
+                infoWindow.open(googleMapObj.current, marker);
+                googleMapObj.current.panTo({ lat: w.latitude, lng: w.longitude });
+              });
+            }
 
             markersRef.current.push(marker);
           });
+        }
+
+        if (hasPoints && bounds && googleMapObj.current) {
+          googleMapObj.current.fitBounds(bounds);
         }
 
       } catch (err) {
@@ -263,6 +359,24 @@ export default function SanitationPage() {
 
     updateMarkers();
   }, [toilets, wasteReports, activeTab]);
+
+  const fitAllMapPins = async () => {
+    if (!googleMapObj.current) return;
+    try {
+      const { LatLngBounds } = await getGoogleMapsClasses();
+      if (!LatLngBounds) return;
+      const bounds = new LatLngBounds();
+      let count = 0;
+      toilets.forEach(t => { bounds.extend({ lat: t.latitude, lng: t.longitude }); count++; });
+      wasteReports.forEach(w => { bounds.extend({ lat: w.latitude, lng: w.longitude }); count++; });
+      if (count > 0) {
+        googleMapObj.current.fitBounds(bounds);
+        showToast('🎯 Map Centered to All Sanitation Pins');
+      }
+    } catch (e) {
+      console.warn(e);
+    }
+  };
 
   // File Picker for Waste Report
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -423,7 +537,7 @@ export default function SanitationPage() {
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-teal-400 animate-pulse" />
               <h3 className="text-xs font-black text-white uppercase tracking-wider">
-                {t('लाइट थीम नकाशा व रिड्यूस्ड पिन्स', 'Light GIS Map — Reduced Marker Pins')}
+                {t('लाइट थीम नकाशा (Click Map to Drop Pin)', 'Light GIS Map — Click Anywhere to Drop Pin')}
               </h3>
             </div>
             
@@ -448,17 +562,28 @@ export default function SanitationPage() {
             </div>
           </div>
 
-          <button
-            onClick={fetchSanitationData}
-            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 transition-all border border-white/10"
-            title="Refresh Sanitation Data"
-          >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={fitAllMapPins}
+              className="px-2.5 py-1.5 rounded-lg bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 font-bold text-xs flex items-center gap-1 transition-all border border-teal-500/30"
+              title="Fit All Map Pins"
+            >
+              <Maximize2 size={13} />
+              <span>Fit Pins</span>
+            </button>
+
+            <button
+              onClick={fetchSanitationData}
+              className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 transition-all border border-white/10"
+              title="Refresh Sanitation Data"
+            >
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            </button>
+          </div>
         </div>
 
         {/* Light Map Canvas */}
-        <div className="w-full h-[320px] rounded-2xl overflow-hidden relative border border-white/10 bg-[#f5f5f5]">
+        <div className="w-full h-[320px] rounded-2xl overflow-hidden relative border border-white/10 bg-[#f8fafc]">
           <div ref={mapRef} className="w-full h-full z-0" />
 
           {/* Toast Notification */}
@@ -521,9 +646,18 @@ export default function SanitationPage() {
                         Continuous Water ✓
                       </span>
                     )}
-                    <span className="text-slate-400 ml-auto font-mono">
-                      📍 {toilet.latitude}, {toilet.longitude}
-                    </span>
+                    <button
+                      onClick={() => {
+                        if (googleMapObj.current) {
+                          googleMapObj.current.panTo({ lat: toilet.latitude, lng: toilet.longitude });
+                          googleMapObj.current.setZoom(15);
+                        }
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 font-bold text-[11px] flex items-center gap-1 transition-all border border-purple-500/30 ml-auto"
+                    >
+                      <MapPin size={12} />
+                      <span>View on Map</span>
+                    </button>
                   </div>
                 </div>
               ))
@@ -594,22 +728,30 @@ export default function SanitationPage() {
 
                   {/* Municipal Manager Status Control Actions */}
                   <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[11px]">
-                    <span className="text-slate-400">Status Update:</span>
+                    <button
+                      onClick={() => {
+                        if (googleMapObj.current) {
+                          googleMapObj.current.panTo({ lat: report.latitude, lng: report.longitude });
+                          googleMapObj.current.setZoom(15);
+                        }
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 font-bold text-[11px] flex items-center gap-1 transition-all border border-teal-500/30"
+                    >
+                      <MapPin size={12} />
+                      <span>View on Map</span>
+                    </button>
+
                     <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => handleUpdateWasteStatus(report.id, 'CLEANING_DISPATCHED')}
-                        disabled={report.status === 'CLEANING_DISPATCHED'}
-                        className="px-2.5 py-1 bg-blue-600/80 hover:bg-blue-500 disabled:opacity-40 text-white font-extrabold text-[10px] rounded-lg transition-all"
+                      <span className="text-[11px] text-slate-400 font-bold">Status:</span>
+                      <select
+                        value={report.status}
+                        onChange={(e) => handleUpdateWasteStatus(report.id, e.target.value)}
+                        className="px-2.5 py-1 rounded-xl bg-[#1E293B] border border-white/20 text-white text-xs font-bold outline-none focus:border-teal-400 cursor-pointer"
                       >
-                        🚚 Crew Dispatched
-                      </button>
-                      <button
-                        onClick={() => handleUpdateWasteStatus(report.id, 'CLEANED')}
-                        disabled={report.status === 'CLEANED'}
-                        className="px-2.5 py-1 bg-emerald-600/80 hover:bg-emerald-500 disabled:opacity-40 text-white font-extrabold text-[10px] rounded-lg transition-all"
-                      >
-                        ✓ Cleaned & Closed
-                      </button>
+                        <option value="PENDING">🟠 PENDING (Pending Dispatch)</option>
+                        <option value="CLEANING_DISPATCHED">🔵 CLEANING DISPATCHED (Crew Dispatched)</option>
+                        <option value="CLEANED">🟢 CLEANED (Resolved & Cleaned)</option>
+                      </select>
                     </div>
                   </div>
                 </div>
