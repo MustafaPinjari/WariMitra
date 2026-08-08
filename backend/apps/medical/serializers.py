@@ -1,22 +1,17 @@
+"""Medical serializers"""
 from rest_framework import serializers
-from .models import Hospital, MedicalCamp, Ambulance, MedicalCase
+from .models import MedicalCamp, Patient
 
-class HospitalSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Hospital
-        fields = '__all__'
 
 class MedicalCampSerializer(serializers.ModelSerializer):
     class Meta:
         model = MedicalCamp
-        fields = '__all__'
+        fields = ['id', 'name', 'latitude', 'longitude', 'capacity', 'current_patients']
+        read_only_fields = ['id']
 
-class AmbulanceSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Ambulance
-        fields = '__all__'
 
-class MedicalCaseSerializer(serializers.ModelSerializer):
+class PatientSerializer(serializers.ModelSerializer):
     class Meta:
-        model = MedicalCase
-        fields = '__all__'
+        model = Patient
+        fields = ['id', 'medical_camp', 'first_name', 'last_name', 'age', 'condition', 'created_at']
+        read_only_fields = ['id', 'created_at']

@@ -1,0 +1,1 @@
+"""WariMitra Django Apps"""

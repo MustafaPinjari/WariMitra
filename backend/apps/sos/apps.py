@@ -1,6 +1,7 @@
-﻿from django.apps import AppConfig
+"""SOS app configuration"""
+from django.apps import AppConfig
 
 
 class SosConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
     name = 'apps.sos'
-

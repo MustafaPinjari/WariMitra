@@ -1,0 +1,1 @@
+# Medical Camps application module

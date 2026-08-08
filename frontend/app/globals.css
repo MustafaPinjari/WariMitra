@@ -1,0 +1,72 @@
+/* Global styles for WariMitra Frontend */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Phase 1.8: WCAG AA Compliance Styles */
+
+/* High contrast mode - Phase 3.2 */
+@media (prefers-contrast: more) {
+  :root {
+    --color-text: #000000;
+    --color-bg: #ffffff;
+    --color-border: #000000;
+  }
+  
+  body {
+    color: var(--color-text);
+    background-color: var(--color-bg);
+  }
+}
+
+/* Reduced motion support - Phase 1.8 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Base typography - Phase 1.8: Sufficient contrast */
+body {
+  @apply bg-gray-900 text-gray-100;
+  color-scheme: dark;
+}
+
+/* Ensure text is readable */
+a {
+  @apply underline decoration-blue-500;
+}
+
+a:hover {
+  @apply text-blue-400;
+}
+
+/* Focus styles for accessibility */
+:focus {
+  @apply outline-2 outline-blue-500 outline-offset-2;
+}
+
+button:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  @apply outline-2 outline-blue-500 outline-offset-2;
+}
+
+/* Ensure buttons are large enough */
+button,
+input[type="button"],
+input[type="submit"],
+input[type="reset"] {
+  @apply min-h-12 min-w-12;
+}
+
+/* Phase 1.9: Memory optimization - bounded containers */
+.incident-list {
+  @apply max-h-[600px] overflow-y-auto;
+}

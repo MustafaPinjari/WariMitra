@@ -1,18 +1,16 @@
+"""SOS serializers"""
 from rest_framework import serializers
-from .models import EmergencyIncident, EmergencyResponder, EmergencyLog
+from .models import SosAlert, DeviceFingerprint
 
-class EmergencyIncidentSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = EmergencyIncident
-        fields = '__all__'
-        read_only_fields = ('id', 'user', 'status', 'created_at', 'updated_at')
 
-class EmergencyResponderSerializer(serializers.ModelSerializer):
+class SosAlertSerializer(serializers.ModelSerializer):
     class Meta:
-        model = EmergencyResponder
-        fields = '__all__'
+        model = SosAlert
+        fields = ['id', 'user', 'status', 'latitude', 'longitude', 'description', 'severity', 'created_at']
+        read_only_fields = ['id', 'created_at']
 
-class EmergencyLogSerializer(serializers.ModelSerializer):
+
+class DeviceFingerprintSerializer(serializers.ModelSerializer):
     class Meta:
-        model = EmergencyLog
-        fields = '__all__'
+        model = DeviceFingerprint
+        fields = ['id', 'device_id', 'device_model', 'os_type', 'os_version', 'ip_address']

@@ -1,38 +1,61 @@
-import uuid
+"""Medical models"""
 from django.db import models
-from django.conf import settings
-from core.models import TimestampModel
+from apps.core.models import BaseModel
+from apps.core.fields import (
+    EncryptedCharField,
+    EncryptedTextField,
+    EncryptedIntegerField
+)
+from apps.auth.models import User
 
-class Hospital(TimestampModel):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+class MedicalCamp(BaseModel):
+    """Medical aid camp location"""
     name = models.CharField(max_length=255)
-    latitude = models.DecimalField(max_digits=9, decimal_places=6)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6)
-    total_beds = models.IntegerField(default=0)
-    available_beds = models.IntegerField(default=0)
-    contact_number = models.CharField(max_length=15)
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    capacity = models.IntegerField()
+    current_patients = models.IntegerField(default=0)
+    staff = models.ManyToManyField(User, related_name='medical_camps')
+    
+    class Meta:
+        ordering = ['name']
+    
+    def __str__(self):
+        return self.name
 
-class MedicalCamp(TimestampModel):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=255)
-    latitude = models.DecimalField(max_digits=9, decimal_places=6)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6)
-    doctors_available = models.IntegerField(default=1)
-    status = models.CharField(max_length=20, default='Active') # Active, Overcrowded, Closed
 
-class Ambulance(TimestampModel):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    vehicle_number = models.CharField(max_length=20, unique=True)
-    driver = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
-    latitude = models.DecimalField(max_digits=9, decimal_places=6)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6)
-    status = models.CharField(max_length=20, default='Available') # Available, Dispatched, Maintenance
-
-class MedicalCase(TimestampModel):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    patient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='medical_history')
-    camp = models.ForeignKey(MedicalCamp, on_delete=models.SET_NULL, null=True, blank=True)
-    doctor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='treated_cases')
-    diagnosis = models.TextField()
-    treatment = models.TextField()
-    is_critical = models.BooleanField(default=False)
+class Patient(BaseModel):
+    """
+    Patient record - Phase 1.3: Field-level encryption of medical data
+    
+    Encrypted fields:
+    - first_name: Patient's given name (encrypted)
+    - last_name: Patient's family name (encrypted)
+    - age: Patient's age (encrypted as integer)
+    - condition: Medical condition description (encrypted)
+    
+    Unencrypted fields:
+    - medical_camp: Foreign key reference (needed for queries)
+    - created_at: Timestamp (needed for time-based queries)
+    
+    Security properties:
+    - All PII encrypted with AES-256-GCM
+    - Supports aggregate queries (COUNT) on encrypted data
+    - Backwards compatible with unencrypted records
+    - Audit logging tracks medical data access
+    """
+    medical_camp = models.ForeignKey(MedicalCamp, on_delete=models.PROTECT, related_name='patients')
+    first_name = EncryptedCharField(max_length=255)
+    last_name = EncryptedCharField(max_length=255)
+    age = EncryptedIntegerField(null=True, blank=True)
+    condition = EncryptedTextField()
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['medical_camp', 'created_at']),
+        ]
+    
+    def __str__(self):
+        return f"Patient at {self.medical_camp.name} (ID: {self.id})"
