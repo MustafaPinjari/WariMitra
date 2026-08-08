@@ -45,13 +45,3 @@ class GpsPing(BaseModel):
     def __str__(self):
         return f"GPS ping from {self.user.username} at {self.created_at}"
 
-
-class LiveDensity(BaseModel):
-    """Real-time crowd density data - Phase 2.2: Move to Redis"""
-    latitude = models.FloatField()
-    longitude = models.FloatField()
-    density_level = models.IntegerField()  # 0-100 scale
-    radius = models.IntegerField(default=100)  # meters
-    
-    class Meta:
-        ordering = ['-created_at']
